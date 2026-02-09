@@ -33,22 +33,43 @@ function getR2Client() {
   });
 }
 
-async function streamToString(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) chunks.push(value);
+async function bodyToString(body: unknown) {
+  if (!body) return "";
+  if (typeof (body as { transformToString?: () => Promise<string> }).transformToString === "function") {
+    return (body as { transformToString: () => Promise<string> }).transformToString();
   }
-  const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-  const buffer = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.length;
+  if (typeof (body as ReadableStream<Uint8Array>).getReader === "function") {
+    const reader = (body as ReadableStream<Uint8Array>).getReader();
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const buffer = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return new TextDecoder().decode(buffer);
   }
-  return new TextDecoder().decode(buffer);
+  if (typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === "function") {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const buffer = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return new TextDecoder().decode(buffer);
+  }
+  return "";
 }
 
 async function readIndex(client: S3Client, bucket: string): Promise<DraftMeta[]> {
@@ -60,7 +81,7 @@ async function readIndex(client: S3Client, bucket: string): Promise<DraftMeta[]>
       })
     );
     if (!res.Body) return [];
-    const raw = await streamToString(res.Body as ReadableStream<Uint8Array>);
+    const raw = await bodyToString(res.Body);
     const parsed = JSON.parse(raw) as DraftMeta[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
