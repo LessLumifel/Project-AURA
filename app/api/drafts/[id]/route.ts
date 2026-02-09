@@ -25,11 +25,11 @@ function getR2Client() {
   const accountId = requireEnv("R2_ACCOUNT_ID");
   const accessKeyId = requireEnv("R2_ACCESS_KEY_ID");
   const secretAccessKey = requireEnv("R2_SECRET_ACCESS_KEY");
-
-  return new S3Client({
-    region: "auto",
+   return new S3Client({
+    region: "APAC",
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey }
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true
   });
 }
 
@@ -105,7 +105,6 @@ export async function GET(_: Request, context: { params: { id: string } }) {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
     const id = context.params.id;
-
     const res = await client.send(
       new GetObjectCommand({
         Bucket: bucket,
@@ -117,9 +116,9 @@ export async function GET(_: Request, context: { params: { id: string } }) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    const raw = await streamToString(res.Body as ReadableStream<Uint8Array>);
+    const raw = await bodyToString(res.Body as ReadableStream<Uint8Array>);
     const parsed = JSON.parse(raw) as Draft;
-
+console.log("Fuckkkkkkkkkkkkkkkkkkk");
     return Response.json(parsed);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load draft";
