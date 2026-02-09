@@ -2,27 +2,26 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-
-function decodeBase64Url(input: string) {
-  try {
-    const padded = input
-      .replace(/-/g, "+")
-      .replace(/_/g, "/")
-      .padEnd(Math.ceil(input.length / 4) * 4, "=");
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return "";
-  }
-}
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+import { decompressFromEncodedURIComponent } from "lz-string";
+import { decodeBase64Url } from "../utils";
 
 export default function MarkdownViewerClient(): React.ReactElement {
   const searchParams = useSearchParams();
   const docParam = searchParams.get("doc") || "";
 
-  const content = useMemo(() => decodeBase64Url(docParam), [docParam]);
+  const content = useMemo(() => {
+    const decompressed = decompressFromEncodedURIComponent(docParam || "");
+    if (decompressed) return decompressed;
+    return decodeBase64Url(docParam);
+  }, [docParam]);
+
+  const html = useMemo(() => {
+    if (!content) return "";
+    const raw = marked.parse(content);
+    return DOMPurify.sanitize(String(raw));
+  }, [content]);
 
   return (
     <main style={{ padding: "32px 24px", maxWidth: 900, margin: "0 auto" }}>
@@ -31,18 +30,17 @@ export default function MarkdownViewerClient(): React.ReactElement {
       </a>
       <h1 style={{ marginTop: 20 }}>Markdown Viewer</h1>
       <p style={{ color: "var(--ink-2)" }}>ลิงก์นี้แสดง Markdown แบบอ่านอย่างเดียว</p>
-      <pre
+      <div
         style={{
-          whiteSpace: "pre-wrap",
           background: "rgba(10, 18, 40, 0.8)",
           border: "1px solid var(--line)",
           borderRadius: 16,
           padding: 20,
-          color: "var(--ink-0)"
+          color: "var(--ink-0)",
+          lineHeight: 1.7
         }}
-      >
-        {content || "ไม่พบเนื้อหา"}
-      </pre>
+        dangerouslySetInnerHTML={{ __html: html || "<p>ไม่พบเนื้อหา</p>" }}
+      />
     </main>
   );
 }

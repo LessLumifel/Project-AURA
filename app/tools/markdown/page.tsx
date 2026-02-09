@@ -11,10 +11,10 @@ import {
   ImageAsset,
   ensureExt,
   fileToDataUrl,
-  encodeBase64Url,
   slugifyFilename,
   toDocsPath
 } from "./utils";
+import { compressToEncodedURIComponent } from "lz-string";
 
 export default function MarkdownStudioPage(): React.ReactElement {
   const uploadApiUrl = useMemo(
@@ -86,12 +86,16 @@ export default function MarkdownStudioPage(): React.ReactElement {
       }
     }
 
-    const encoded = encodeBase64Url(md);
+    const encoded = compressToEncodedURIComponent(md);
     const url = `${origin}/tools/markdown/viewer?doc=${encoded}`;
 
     try {
       await navigator.clipboard.writeText(url);
-      setShareStatus("คัดลอกลิงก์แชร์แล้ว");
+      if (url.length > 6000) {
+        setShareStatus("คัดลอกลิงก์แล้ว แต่ลิงก์ยังยาวมาก แนะนำให้ใช้การอัปโหลดรูปเพื่อให้ลิงก์สั้นลง");
+      } else {
+        setShareStatus("คัดลอกลิงก์แชร์แล้ว");
+      }
     } catch {
       setShareStatus("ไม่สามารถคัดลอกอัตโนมัติได้");
     }
