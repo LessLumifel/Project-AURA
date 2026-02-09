@@ -106,6 +106,8 @@ export default function MarkdownStudioPage(): React.ReactElement {
 
   const onShareLink = useCallback(async () => {
     const origin = window.location.origin;
+    setShareStatus("กำลังบันทึกก่อนแชร์...");
+    setShareUrl(null);
     let md = markdownRef.current || "";
 
     for (const asset of imagesRef.current.values()) {
@@ -132,12 +134,12 @@ export default function MarkdownStudioPage(): React.ReactElement {
       setShareUrl(url);
       try {
         await navigator.clipboard.writeText(url);
-        setShareStatus("คัดลอกลิงก์แชร์แล้ว (ลิงก์สั้น)");
+        setShareStatus("บันทึกแล้วและคัดลอกลิงก์แชร์เรียบร้อย");
       } catch {
         setShareStatus("ไม่สามารถคัดลอกลิงก์อัตโนมัติได้");
       }
     } catch {
-      setShareStatus("ไม่สามารถคัดลอกลิงก์ได้");
+      setShareStatus("บันทึกไม่สำเร็จ จึงยังไม่สร้างลิงก์แชร์");
     }
   }, [currentDraftId, draftTitle, filename]);
 
