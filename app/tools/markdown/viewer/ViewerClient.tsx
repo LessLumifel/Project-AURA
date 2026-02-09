@@ -13,12 +13,20 @@ export default function MarkdownViewerClient(): React.ReactElement {
   const docParam = searchParams.get("doc") || "";
   const idParam = searchParams.get("id") || "";
   const [content, setContent] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (idParam) {
+      setLoading(true);
+      setError(null);
       void loadDraft(idParam)
         .then((draft) => setContent(draft.markdown))
-        .catch(() => setContent(""));
+        .catch(() => {
+          setContent("");
+          setError("ไม่พบงานที่แชร์ หรือไม่มีสิทธิ์เข้าถึง");
+        })
+        .finally(() => setLoading(false));
       return;
     }
 
@@ -27,7 +35,9 @@ export default function MarkdownViewerClient(): React.ReactElement {
       setContent(decompressed);
       return;
     }
-    setContent(decodeBase64Url(docParam));
+    const decoded = decodeBase64Url(docParam);
+    setContent(decoded);
+    if (!decoded) setError("ไม่พบเนื้อหา");
   }, [docParam, idParam]);
 
   const html = useMemo(() => {
@@ -53,7 +63,13 @@ export default function MarkdownViewerClient(): React.ReactElement {
           lineHeight: 1.7
         }}
         className="viewer-content"
-        dangerouslySetInnerHTML={{ __html: html || "<p>ไม่พบเนื้อหา</p>" }}
+        dangerouslySetInnerHTML={{
+          __html: loading
+            ? "<p>กำลังโหลด…</p>"
+            : error
+              ? `<p>${error}</p>`
+              : html || "<p>ไม่พบเนื้อหา</p>"
+        }}
       />
     </main>
   );

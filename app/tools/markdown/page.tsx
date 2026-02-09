@@ -36,6 +36,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [fileHovered, setFileHovered] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftMeta[]>([]);
   const [draftTitle, setDraftTitle] = useState("งานใหม่");
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
@@ -128,8 +129,13 @@ export default function MarkdownStudioPage(): React.ReactElement {
       setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
 
       const url = `${origin}/tools/markdown/viewer?id=${meta.id}`;
-      await navigator.clipboard.writeText(url);
-      setShareStatus("คัดลอกลิงก์แชร์แล้ว (ลิงก์สั้น)");
+      setShareUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareStatus("คัดลอกลิงก์แชร์แล้ว (ลิงก์สั้น)");
+      } catch {
+        setShareStatus("ไม่สามารถคัดลอกลิงก์อัตโนมัติได้");
+      }
     } catch {
       setShareStatus("ไม่สามารถคัดลอกลิงก์ได้");
     }
@@ -235,6 +241,17 @@ export default function MarkdownStudioPage(): React.ReactElement {
         {(shareStatus || saveStatus) && (
           <div style={{ ...styles.helper, ...styles.helperSuccess }}>
             {[shareStatus, saveStatus].filter(Boolean).join(" • ")}
+          </div>
+        )}
+        {shareUrl && (
+          <div style={{ ...styles.controlsSection, padding: "12px 16px" }}>
+            <div style={{ ...styles.labelSection, flex: 2 }}>
+              <label style={styles.label}>ลิงก์แชร์</label>
+              <input value={shareUrl} readOnly style={styles.input} />
+            </div>
+            <a className="button primary" href={shareUrl} target="_blank" rel="noreferrer">
+              เปิดลิงก์
+            </a>
           </div>
         )}
 
