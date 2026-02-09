@@ -41,13 +41,18 @@ export default function SavePanel({
         <label style={styles.label}>โหลดงาน</label>
         <select
           value={currentId ?? ""}
-          onChange={(e) => onSelect(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            onSelect(value);
+            if (value === "__new__") e.currentTarget.value = "";
+          }}
           style={{
             ...styles.input,
             minWidth: 220,
             cursor: "pointer"
           }}
         >
+          <option value="__new__">+ สร้างงานใหม่</option>
           <option value="" disabled>
             เลือกงานที่บันทึกไว้
           </option>

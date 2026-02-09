@@ -42,6 +42,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [autosave, setAutosave] = useState(true);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     fetchDrafts()
@@ -59,6 +60,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
   useEffect(() => {
     if (!autosave) return;
     if (!currentDraftId) return;
+    if (!isDirty) return;
 
     const id = window.setTimeout(() => {
       void saveDraft({
@@ -70,12 +72,13 @@ export default function MarkdownStudioPage(): React.ReactElement {
         .then((meta) => {
           setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
           setSaveStatus("บันทึกอัตโนมัติแล้ว");
+          setIsDirty(false);
         })
         .catch(() => setSaveStatus("บันทึกอัตโนมัติล้มเหลว"));
     }, 1200);
 
     return () => window.clearTimeout(id);
-  }, [autosave, currentDraftId, draftTitle, filename, currentMarkdown]);
+  }, [autosave, currentDraftId, draftTitle, filename, currentMarkdown, isDirty]);
 
   const onExportZip = useCallback(async () => {
     const zip = new JSZip();
@@ -135,6 +138,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
       try {
         await navigator.clipboard.writeText(url);
         setShareStatus("บันทึกแล้วและคัดลอกลิงก์แชร์เรียบร้อย");
+        setIsDirty(false);
       } catch {
         setShareStatus("ไม่สามารถคัดลอกลิงก์อัตโนมัติได้");
       }
@@ -148,6 +152,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
     setInitialMarkdown(text);
     setCurrentMarkdown(text);
     markdownRef.current = text;
+    setIsDirty(true);
 
     setFilename(file.name.endsWith(".md") || file.name.endsWith(".mdx") ? file.name : "imported.md");
 
@@ -171,11 +176,16 @@ export default function MarkdownStudioPage(): React.ReactElement {
         setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
         setCurrentDraftId(meta.id);
         setSaveStatus("บันทึกงานแล้ว");
+        setIsDirty(false);
       })
       .catch(() => setSaveStatus("บันทึกงานล้มเหลว"));
   }, [currentDraftId, draftTitle, filename]);
 
   const handleSelectDraft = useCallback((id: string) => {
+    if (id === "__new__") {
+      window.location.reload();
+      return;
+    }
     void loadDraft(id)
       .then((draft) => {
         setCurrentDraftId(draft.id);
@@ -184,6 +194,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
         setInitialMarkdown(draft.markdown);
         setCurrentMarkdown(draft.markdown);
         markdownRef.current = draft.markdown;
+        setIsDirty(false);
 
         for (const asset of imagesRef.current.values()) {
           URL.revokeObjectURL(asset.previewUrl);
@@ -263,6 +274,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
           onChange={(value) => {
             markdownRef.current = value;
             setCurrentMarkdown(value);
+            setIsDirty(true);
           }}
           onImagePicked={(file) => {
             const safe = slugifyFilename(file.name || "image.png") || "image.png";
