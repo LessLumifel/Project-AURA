@@ -1,21 +1,34 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { decompressFromEncodedURIComponent } from "lz-string";
 import { decodeBase64Url } from "../utils";
+import { loadDraft } from "../drafts";
 
 export default function MarkdownViewerClient(): React.ReactElement {
   const searchParams = useSearchParams();
   const docParam = searchParams.get("doc") || "";
+  const idParam = searchParams.get("id") || "";
+  const [content, setContent] = useState<string>("");
 
-  const content = useMemo(() => {
+  useEffect(() => {
+    if (idParam) {
+      void loadDraft(idParam)
+        .then((draft) => setContent(draft.markdown))
+        .catch(() => setContent(""));
+      return;
+    }
+
     const decompressed = decompressFromEncodedURIComponent(docParam || "");
-    if (decompressed) return decompressed;
-    return decodeBase64Url(docParam);
-  }, [docParam]);
+    if (decompressed) {
+      setContent(decompressed);
+      return;
+    }
+    setContent(decodeBase64Url(docParam));
+  }, [docParam, idParam]);
 
   const html = useMemo(() => {
     if (!content) return "";
@@ -39,6 +52,7 @@ export default function MarkdownViewerClient(): React.ReactElement {
           color: "var(--ink-0)",
           lineHeight: 1.7
         }}
+        className="viewer-content"
         dangerouslySetInnerHTML={{ __html: html || "<p>ไม่พบเนื้อหา</p>" }}
       />
     </main>

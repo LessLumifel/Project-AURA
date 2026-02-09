@@ -6,6 +6,7 @@ import TopLinks from "./components/TopLinks";
 import HeaderSection from "./components/HeaderSection";
 import ControlsBar from "./components/ControlsBar";
 import EditorPane from "./components/EditorPane";
+import SavePanel from "./components/SavePanel";
 import { styles } from "./styles";
 import {
   ImageAsset,
@@ -14,7 +15,7 @@ import {
   slugifyFilename,
   toDocsPath
 } from "./utils";
-import { compressToEncodedURIComponent } from "lz-string";
+import { Draft, DraftMeta, fetchDrafts, loadDraft, removeDraft, saveDraft } from "./drafts";
 
 export default function MarkdownStudioPage(): React.ReactElement {
   const uploadApiUrl = useMemo(
@@ -26,6 +27,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
     `---\ntitle: ตัวอย่างหน้าเอกสาร\n---\n\n# เริ่มเขียนได้เลย\n`
   );
 
+  const [currentMarkdown, setCurrentMarkdown] = useState(initialMarkdown);
   const markdownRef = useRef(initialMarkdown);
   const imagesRef = useRef<Map<string, ImageAsset>>(new Map());
   const previewToFinalRef = useRef<Map<string, string>>(new Map());
@@ -34,8 +36,16 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [fileHovered, setFileHovered] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<DraftMeta[]>([]);
+  const [draftTitle, setDraftTitle] = useState("งานใหม่");
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [autosave, setAutosave] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchDrafts()
+      .then((items) => setDrafts(items))
+      .catch(() => setDrafts([]));
     return () => {
       for (const asset of imagesRef.current.values()) {
         URL.revokeObjectURL(asset.previewUrl);
@@ -44,6 +54,27 @@ export default function MarkdownStudioPage(): React.ReactElement {
       previewToFinalRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    if (!autosave) return;
+    if (!currentDraftId) return;
+
+    const id = window.setTimeout(() => {
+      void saveDraft({
+        id: currentDraftId,
+        title: draftTitle,
+        filename,
+        markdown: markdownRef.current
+      })
+        .then((meta) => {
+          setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
+          setSaveStatus("บันทึกอัตโนมัติแล้ว");
+        })
+        .catch(() => setSaveStatus("บันทึกอัตโนมัติล้มเหลว"));
+    }, 1200);
+
+    return () => window.clearTimeout(id);
+  }, [autosave, currentDraftId, draftTitle, filename, currentMarkdown]);
 
   const onExportZip = useCallback(async () => {
     const zip = new JSZip();
@@ -77,7 +108,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
     let md = markdownRef.current || "";
 
     for (const asset of imagesRef.current.values()) {
-      if (asset.file) {
+      if (asset.file && !asset.uploaded) {
         const dataUrl = await fileToDataUrl(asset.file);
         md = md.split(asset.previewUrl).join(dataUrl);
         md = md.split(asset.finalSrc).join(dataUrl);
@@ -86,24 +117,28 @@ export default function MarkdownStudioPage(): React.ReactElement {
       }
     }
 
-    const encoded = compressToEncodedURIComponent(md);
-    const url = `${origin}/tools/markdown/viewer?doc=${encoded}`;
-
     try {
+      const meta = await saveDraft({
+        id: currentDraftId ?? undefined,
+        title: draftTitle,
+        filename,
+        markdown: md
+      });
+      setCurrentDraftId(meta.id);
+      setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
+
+      const url = `${origin}/tools/markdown/viewer?id=${meta.id}`;
       await navigator.clipboard.writeText(url);
-      if (url.length > 6000) {
-        setShareStatus("คัดลอกลิงก์แล้ว แต่ลิงก์ยังยาวมาก แนะนำให้ใช้การอัปโหลดรูปเพื่อให้ลิงก์สั้นลง");
-      } else {
-        setShareStatus("คัดลอกลิงก์แชร์แล้ว");
-      }
+      setShareStatus("คัดลอกลิงก์แชร์แล้ว (ลิงก์สั้น)");
     } catch {
-      setShareStatus("ไม่สามารถคัดลอกอัตโนมัติได้");
+      setShareStatus("ไม่สามารถคัดลอกลิงก์ได้");
     }
-  }, []);
+  }, [currentDraftId, draftTitle, filename]);
 
   const onImport = useCallback(async (file: File) => {
     const text = await file.text();
     setInitialMarkdown(text);
+    setCurrentMarkdown(text);
     markdownRef.current = text;
 
     setFilename(file.name.endsWith(".md") || file.name.endsWith(".mdx") ? file.name : "imported.md");
@@ -117,11 +152,72 @@ export default function MarkdownStudioPage(): React.ReactElement {
     setEditorKey((k) => k + 1);
   }, []);
 
+  const handleSave = useCallback(() => {
+    void saveDraft({
+      id: currentDraftId ?? undefined,
+      title: draftTitle,
+      filename,
+      markdown: markdownRef.current
+    })
+      .then((meta) => {
+        setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
+        setCurrentDraftId(meta.id);
+        setSaveStatus("บันทึกงานแล้ว");
+      })
+      .catch(() => setSaveStatus("บันทึกงานล้มเหลว"));
+  }, [currentDraftId, draftTitle, filename]);
+
+  const handleSelectDraft = useCallback((id: string) => {
+    void loadDraft(id)
+      .then((draft) => {
+        setCurrentDraftId(draft.id);
+        setDraftTitle(draft.title || "งานใหม่");
+        setFilename(draft.filename || "new-doc.md");
+        setInitialMarkdown(draft.markdown);
+        setCurrentMarkdown(draft.markdown);
+        markdownRef.current = draft.markdown;
+
+        for (const asset of imagesRef.current.values()) {
+          URL.revokeObjectURL(asset.previewUrl);
+        }
+        imagesRef.current.clear();
+        previewToFinalRef.current.clear();
+
+        setEditorKey((k) => k + 1);
+        setSaveStatus("โหลดงานแล้ว");
+      })
+      .catch(() => setSaveStatus("โหลดงานล้มเหลว"));
+  }, []);
+
+  const handleDeleteDraft = useCallback(() => {
+    if (!currentDraftId) return;
+    void removeDraft(currentDraftId)
+      .then(() => {
+        setDrafts((prev) => prev.filter((item) => item.id !== currentDraftId));
+        setCurrentDraftId(null);
+        setDraftTitle("งานใหม่");
+        setSaveStatus("ลบงานแล้ว");
+      })
+      .catch(() => setSaveStatus("ลบงานล้มเหลว"));
+  }, [currentDraftId]);
+
   return (
     <div style={styles.page}>
       <div style={styles.container}>
         <TopLinks />
         <HeaderSection />
+
+        <SavePanel
+          drafts={drafts}
+          currentId={currentDraftId}
+          onSelect={handleSelectDraft}
+          onSave={handleSave}
+          onDelete={handleDeleteDraft}
+          draftTitle={draftTitle}
+          onTitleChange={setDraftTitle}
+          autosave={autosave}
+          onToggleAutosave={() => setAutosave((prev) => !prev)}
+        />
 
         <ControlsBar
           filename={filename}
@@ -136,13 +232,18 @@ export default function MarkdownStudioPage(): React.ReactElement {
           setFileHovered={setFileHovered}
         />
 
-        {shareStatus && <div style={{ ...styles.helper, ...styles.helperSuccess }}>{shareStatus}</div>}
+        {(shareStatus || saveStatus) && (
+          <div style={{ ...styles.helper, ...styles.helperSuccess }}>
+            {[shareStatus, saveStatus].filter(Boolean).join(" • ")}
+          </div>
+        )}
 
         <EditorPane
           editorKey={editorKey}
           markdown={initialMarkdown}
           onChange={(value) => {
             markdownRef.current = value;
+            setCurrentMarkdown(value);
           }}
           onImagePicked={(file) => {
             const safe = slugifyFilename(file.name || "image.png") || "image.png";
@@ -163,15 +264,15 @@ export default function MarkdownStudioPage(): React.ReactElement {
                 if (!res.ok) throw new Error("upload failed");
                 const json = (await res.json()) as { url: string };
                 const finalSrc = json.url;
-                imagesRef.current.set(safe, { file, previewUrl, finalSrc });
-                previewToFinalRef.current.set(previewUrl, finalSrc);
-                return finalSrc;
-              })
-              .catch(() => {
-                imagesRef.current.set(safe, { file, previewUrl, finalSrc: previewUrl });
-                previewToFinalRef.current.set(previewUrl, previewUrl);
-                return previewUrl;
-              });
+                    imagesRef.current.set(safe, { file, previewUrl, finalSrc, uploaded: true });
+                    previewToFinalRef.current.set(previewUrl, finalSrc);
+                    return finalSrc;
+                  })
+                  .catch(() => {
+                    imagesRef.current.set(safe, { file, previewUrl, finalSrc: previewUrl, uploaded: false });
+                    previewToFinalRef.current.set(previewUrl, previewUrl);
+                    return previewUrl;
+                  });
           }}
         />
       </div>

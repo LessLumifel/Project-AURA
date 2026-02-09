@@ -1,4 +1,4 @@
-export type ImageAsset = { file?: File; previewUrl: string; finalSrc: string };
+export type ImageAsset = { file?: File; previewUrl: string; finalSrc: string; uploaded: boolean };
 
 export function slugifyFilename(name: string) {
   return name
