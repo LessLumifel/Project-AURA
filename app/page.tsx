@@ -7,7 +7,8 @@ const tools = [
   {
     title: "Markdown Studio",
     desc: "เขียน แปลง และส่งออก Markdown เป็น PDF/HTML พร้อมธีม",
-    tag: "Core"
+    tag: "Core",
+    href: "/tools/markdown"
   },
   {
     title: "ตัวรวมลิงก์",
@@ -113,15 +114,25 @@ export default function HomePage() {
       <section id="tools" className="container">
         <div className="section-title">เครื่องมือหลักและแผนในอนาคต</div>
         <div className="tool-grid">
-          {tools.map((tool) => (
-            <article key={tool.title} className="tool-card">
-              <span style={{ fontSize: "0.75rem", color: "var(--ice-2)", textTransform: "uppercase" }}>
-                {tool.tag}
-              </span>
-              <h3>{tool.title}</h3>
-              <p>{tool.desc}</p>
-            </article>
-          ))}
+          {tools.map((tool) => {
+            const Card = (
+              <article key={tool.title} className="tool-card">
+                <span style={{ fontSize: "0.75rem", color: "var(--ice-2)", textTransform: "uppercase" }}>
+                  {tool.tag}
+                </span>
+                <h3>{tool.title}</h3>
+                <p>{tool.desc}</p>
+              </article>
+            );
+
+            if (!tool.href) return Card;
+
+            return (
+              <a key={tool.title} href={tool.href} className="tool-card-link" aria-label={tool.title}>
+                {Card}
+              </a>
+            );
+          })}
         </div>
       </section>
 

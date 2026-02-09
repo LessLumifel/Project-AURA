@@ -188,6 +188,15 @@ main {
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
+.tool-card-link {
+  display: block;
+}
+
+.tool-card-link:hover .tool-card {
+  transform: translateY(-2px);
+  border-color: rgba(119, 243, 255, 0.4);
+}
+
 .tool-card:hover {
   transform: translateY(-2px);
   border-color: rgba(119, 243, 255, 0.4);

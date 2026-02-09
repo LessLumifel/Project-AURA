@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "gitmcp-project-aura": {
+      "type": "http",
+      "url": "https://gitmcp.io/LessLumifel/Project-AURA"
+    }
+  }
+}
