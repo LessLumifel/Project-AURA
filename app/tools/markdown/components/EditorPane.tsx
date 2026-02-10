@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { styles } from "../styles";
+import type { MDXEditorMethods } from "@mdxeditor/editor";
 
 type EditorProps = {
   markdown: string;
   onChange: (value: string) => void;
   onImagePicked: (file: File) => Promise<string>;
+  onEditorReady?: (methods: MDXEditorMethods | null) => void;
 };
 
 const MDXEditorClient = dynamic(async () => {
@@ -39,53 +41,62 @@ const MDXEditorClient = dynamic(async () => {
     DiffSourceToggleWrapper
   } = mod;
 
-  const Component = (props: EditorProps) => (
-    <React.Suspense fallback={<div style={styles.loadingFallback}>กำลังโหลด Editor…</div>}>
-      <MDXEditor
-        markdown={props.markdown}
-        onChange={props.onChange}
-        plugins={[
-          frontmatterPlugin(),
-          headingsPlugin(),
-          listsPlugin(),
-          quotePlugin(),
-          thematicBreakPlugin(),
-          linkPlugin(),
-          linkDialogPlugin(),
-          imagePlugin({
-            imageUploadHandler: async (file) => props.onImagePicked(file)
-          }),
-          tablePlugin(),
-          codeBlockPlugin(),
-          sandpackPlugin(),
-          diffSourcePlugin(),
-          toolbarPlugin({
-            toolbarContents: () => {
-              const host = typeof document !== "undefined" ? document.getElementById("mdx-toolbar-host") : null;
-              if (!host) return null;
-              return createPortal(
-                <div className="mdxeditor-toolbar">
-                  <DiffSourceToggleWrapper>
-                    <UndoRedo />
-                    <BoldItalicUnderlineToggles />
-                    <CodeToggle />
-                    <ListsToggle />
-                    <BlockTypeSelect />
-                    <CreateLink />
-                    <InsertImage />
-                    <InsertTable />
-                    <InsertCodeBlock />
-                    <InsertThematicBreak />
-                  </DiffSourceToggleWrapper>
-                </div>,
-                host
-              );
-            }
-          })
-        ]}
-      />
-    </React.Suspense>
-  );
+  const Component = (props: EditorProps) => {
+    const editorRef = useRef<MDXEditorMethods>(null);
+
+    useEffect(() => {
+      if (props.onEditorReady) props.onEditorReady(editorRef.current);
+    }, [props.onEditorReady]);
+
+    return (
+      <React.Suspense fallback={<div style={styles.loadingFallback}>กำลังโหลด Editor…</div>}>
+        <MDXEditor
+          ref={editorRef}
+          markdown={props.markdown}
+          onChange={props.onChange}
+          plugins={[
+            frontmatterPlugin(),
+            headingsPlugin(),
+            listsPlugin(),
+            quotePlugin(),
+            thematicBreakPlugin(),
+            linkPlugin(),
+            linkDialogPlugin(),
+            imagePlugin({
+              imageUploadHandler: async (file) => props.onImagePicked(file)
+            }),
+            tablePlugin(),
+            codeBlockPlugin(),
+            sandpackPlugin(),
+            diffSourcePlugin(),
+            toolbarPlugin({
+              toolbarContents: () => {
+                const host = typeof document !== "undefined" ? document.getElementById("mdx-toolbar-host") : null;
+                if (!host) return null;
+                return createPortal(
+                  <div className="mdxeditor-toolbar">
+                    <DiffSourceToggleWrapper>
+                      <UndoRedo />
+                      <BoldItalicUnderlineToggles />
+                      <CodeToggle />
+                      <ListsToggle />
+                      <BlockTypeSelect />
+                      <CreateLink />
+                      <InsertImage />
+                      <InsertTable />
+                      <InsertCodeBlock />
+                      <InsertThematicBreak />
+                    </DiffSourceToggleWrapper>
+                  </div>,
+                  host
+                );
+              }
+            })
+          ]}
+        />
+      </React.Suspense>
+    );
+  };
 
   return {
     default: Component
@@ -99,7 +110,8 @@ type Props = {
   onImagePicked: (file: File) => Promise<string>;
   onPasteFiles: (files: File[]) => void;
   onContextUpload: () => void;
-  onShowContextTools: (x: number, y: number) => void;
+  onShowContextTools: (x: number, y: number, range: Range | null) => void;
+  onEditorReady: (methods: MDXEditorMethods | null) => void;
 };
 
 export default function EditorPane({
@@ -109,7 +121,8 @@ export default function EditorPane({
   onImagePicked,
   onPasteFiles,
   onContextUpload,
-  onShowContextTools
+  onShowContextTools,
+  onEditorReady
 }: Props): React.ReactElement {
   return (
     <div
@@ -204,7 +217,9 @@ export default function EditorPane({
       }}
       onContextMenu={(event) => {
         event.preventDefault();
-        onShowContextTools(event.clientX, event.clientY);
+        const selection = window.getSelection();
+        const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+        onShowContextTools(event.clientX, event.clientY, range);
       }}
     >
       <div style={styles.editorWrapper}>
@@ -213,6 +228,7 @@ export default function EditorPane({
           markdown={markdown}
           onChange={onChange}
           onImagePicked={onImagePicked}
+          onEditorReady={onEditorReady}
         />
       </div>
     </div>

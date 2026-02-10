@@ -6,6 +6,7 @@ import TopLinks from "./components/TopLinks";
 import HeaderSection from "./components/HeaderSection";
 import ControlsBar from "./components/ControlsBar";
 import EditorPane from "./components/EditorPane";
+import type { MDXEditorMethods } from "@mdxeditor/editor";
 import SavePanel from "./components/SavePanel";
 import { styles } from "./styles";
 import {
@@ -44,6 +45,8 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const pasteInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<MDXEditorMethods | null>(null);
+  const contextSelectionRef = useRef<Range | null>(null);
   const [contextTools, setContextTools] = useState<{ x: number; y: number; visible: boolean }>({
     x: 0,
     y: 0,
@@ -277,22 +280,51 @@ export default function MarkdownStudioPage(): React.ReactElement {
     [uploadApiUrl]
   );
 
-  const handlePasteFiles = useCallback(
-    async (files: File[]) => {
-      let next = markdownRef.current;
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) continue;
-        const url = await uploadAndEmbed(file);
-        if (!url) continue;
-        next += `\n\n![](${url})\n`;
+  const insertImageAtCursor = useCallback(
+    async (file: File) => {
+      const url = await uploadAndEmbed(file);
+      if (!url) return;
+      const markdown = `\n\n![](${url})\n`;
+      if (editorRef.current?.insertMarkdown) {
+        editorRef.current.focus?.(() => {
+          editorRef.current?.insertMarkdown(markdown);
+        }, { preventScroll: true });
+      } else {
+        markdownRef.current += markdown;
+        setInitialMarkdown(markdownRef.current);
+        setCurrentMarkdown(markdownRef.current);
+        setEditorKey((k) => k + 1);
       }
-      markdownRef.current = next;
-      setInitialMarkdown(next);
-      setCurrentMarkdown(next);
-      setEditorKey((k) => k + 1);
       setIsDirty(true);
     },
     [uploadAndEmbed]
+  );
+
+  const restoreContextSelection = useCallback(() => {
+    const range = contextSelectionRef.current;
+    if (!range) return;
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, []);
+
+  const handlePasteFiles = useCallback(
+    async (files: File[]) => {
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        await insertImageAtCursor(file);
+      }
+      setIsDirty(true);
+    },
+    [insertImageAtCursor]
+  );
+
+  const replacePendingPlaceholder = useCallback(
+    async (file: File) => {
+      await insertImageAtCursor(file);
+    },
+    [insertImageAtCursor]
   );
 
   return (
@@ -360,7 +392,13 @@ export default function MarkdownStudioPage(): React.ReactElement {
           onImagePicked={(file) => uploadAndEmbed(file)}
           onPasteFiles={handlePasteFiles}
           onContextUpload={() => pasteInputRef.current?.click()}
-          onShowContextTools={(x, y) => setContextTools({ x, y, visible: true })}
+          onShowContextTools={(x, y, range) => {
+            contextSelectionRef.current = range;
+            setContextTools({ x, y, visible: true });
+          }}
+          onEditorReady={(methods) => {
+            editorRef.current = methods;
+          }}
         />
         <input
           ref={pasteInputRef}
@@ -369,7 +407,10 @@ export default function MarkdownStudioPage(): React.ReactElement {
           style={{ display: "none" }}
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) void handlePasteFiles([file]);
+            if (file) {
+              restoreContextSelection();
+              void replacePendingPlaceholder(file);
+            }
             event.currentTarget.value = "";
           }}
         />
