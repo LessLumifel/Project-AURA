@@ -148,11 +148,14 @@ export const styles = {
   editorWrapper: {
     border: "1px solid rgba(148, 163, 184, 0.35)",
     borderRadius: "18px",
-    overflow: "hidden",
+    overflow: "auto",
     boxShadow: "0 20px 50px rgba(6, 10, 24, 0.45)",
     backgroundColor: "white",
     flex: 1,
-    display: "flex"
+    display: "flex",
+    flexDirection: "column" as const,
+    maxHeight: "70vh",
+    height: "70vh"
   },
   loadingFallback: {
     padding: "24px",

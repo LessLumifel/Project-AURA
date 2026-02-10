@@ -209,6 +209,41 @@ main {
   height: auto;
 }
 
+.mdxeditor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.mdxeditor {
+  min-height: 100%;
+}
+
+.context-tools {
+  position: fixed;
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 120, 200, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+}
+
+.mdxeditor-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mdxeditor-content {
+  flex: 1;
+  overflow: auto;
+}
+
 .tool-card:hover {
   transform: translateY(-2px);
   border-color: rgba(119, 243, 255, 0.4);

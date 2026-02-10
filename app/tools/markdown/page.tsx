@@ -43,6 +43,12 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [autosave, setAutosave] = useState(true);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const pasteInputRef = useRef<HTMLInputElement>(null);
+  const [contextTools, setContextTools] = useState<{ x: number; y: number; visible: boolean }>({
+    x: 0,
+    y: 0,
+    visible: false
+  });
 
   useEffect(() => {
     fetchDrafts()
@@ -220,9 +226,63 @@ export default function MarkdownStudioPage(): React.ReactElement {
       .catch(() => setSaveStatus("ลบงานล้มเหลว"));
   }, [currentDraftId]);
 
+  const uploadAndEmbed = useCallback(
+    async (file: File) => {
+      if (!file) return "";
+      const safe = slugifyFilename(file.name || "image.png") || "image.png";
+      const previewUrl = URL.createObjectURL(file);
+
+      const prev = imagesRef.current.get(safe);
+      if (prev) {
+        URL.revokeObjectURL(prev.previewUrl);
+        previewToFinalRef.current.delete(prev.previewUrl);
+      }
+
+      const uploadUrl = uploadApiUrl || `${window.location.origin}/api/upload`;
+      const form = new FormData();
+      form.append("file", file);
+
+      try {
+        const res = await fetch(uploadUrl, { method: "POST", body: form });
+        if (!res.ok) throw new Error("upload failed");
+        const json = (await res.json()) as { url: string };
+        const finalSrc = json.url;
+        imagesRef.current.set(safe, { file, previewUrl, finalSrc, uploaded: true });
+        previewToFinalRef.current.set(previewUrl, finalSrc);
+        return finalSrc;
+      } catch {
+        imagesRef.current.set(safe, { file, previewUrl, finalSrc: previewUrl, uploaded: false });
+        previewToFinalRef.current.set(previewUrl, previewUrl);
+        return previewUrl;
+      }
+    },
+    [uploadApiUrl]
+  );
+
+  const handlePasteFiles = useCallback(
+    async (files: File[]) => {
+      let next = markdownRef.current;
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        const url = await uploadAndEmbed(file);
+        if (!url) continue;
+        next += `\n\n![](${url})\n`;
+      }
+      markdownRef.current = next;
+      setInitialMarkdown(next);
+      setCurrentMarkdown(next);
+      setEditorKey((k) => k + 1);
+      setIsDirty(true);
+    },
+    [uploadAndEmbed]
+  );
+
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
+    <div style={styles.page} className="markdown-page">
+      <div
+        style={styles.container}
+        onClick={() => setContextTools((prev) => ({ ...prev, visible: false }))}
+      >
         <TopLinks />
         <HeaderSection />
 
@@ -276,36 +336,45 @@ export default function MarkdownStudioPage(): React.ReactElement {
             setCurrentMarkdown(value);
             setIsDirty(true);
           }}
-          onImagePicked={(file) => {
-            const safe = slugifyFilename(file.name || "image.png") || "image.png";
-            const previewUrl = URL.createObjectURL(file);
-
-            const prev = imagesRef.current.get(safe);
-            if (prev) {
-              URL.revokeObjectURL(prev.previewUrl);
-              previewToFinalRef.current.delete(prev.previewUrl);
-            }
-
-            const uploadUrl = uploadApiUrl || `${window.location.origin}/api/upload`;
-            const form = new FormData();
-            form.append("file", file);
-
-            return fetch(uploadUrl, { method: "POST", body: form })
-              .then(async (res) => {
-                if (!res.ok) throw new Error("upload failed");
-                const json = (await res.json()) as { url: string };
-                const finalSrc = json.url;
-                    imagesRef.current.set(safe, { file, previewUrl, finalSrc, uploaded: true });
-                    previewToFinalRef.current.set(previewUrl, finalSrc);
-                    return finalSrc;
-                  })
-                  .catch(() => {
-                    imagesRef.current.set(safe, { file, previewUrl, finalSrc: previewUrl, uploaded: false });
-                    previewToFinalRef.current.set(previewUrl, previewUrl);
-                    return previewUrl;
-                  });
+          onImagePicked={(file) => uploadAndEmbed(file)}
+          onPasteFiles={handlePasteFiles}
+          onContextUpload={() => pasteInputRef.current?.click()}
+          onShowContextTools={(x, y) => setContextTools({ x, y, visible: true })}
+        />
+        <input
+          ref={pasteInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handlePasteFiles([file]);
+            event.currentTarget.value = "";
           }}
         />
+        {contextTools.visible && (
+          <div
+            className="context-tools"
+            style={{ left: contextTools.x, top: contextTools.y }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              className="button primary"
+              onClick={() => {
+                setContextTools((prev) => ({ ...prev, visible: false }));
+                pasteInputRef.current?.click();
+              }}
+            >
+              เพิ่มรูป
+            </button>
+            <button
+              className="button"
+              onClick={() => setContextTools((prev) => ({ ...prev, visible: false }))}
+            >
+              ปิด
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
