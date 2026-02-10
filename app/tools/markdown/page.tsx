@@ -64,6 +64,24 @@ export default function MarkdownStudioPage(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    const moveTooltipsToBody = () => {
+      const roots = Array.from(document.querySelectorAll("[data-tippy-root]"));
+      roots.forEach((root) => {
+        if (root.parentElement !== document.body) {
+          document.body.appendChild(root);
+        }
+      });
+    };
+
+    moveTooltipsToBody();
+    const observer = new MutationObserver(() => moveTooltipsToBody());
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+
+  useEffect(() => {
     if (!autosave) return;
     if (!currentDraftId) return;
     if (!isDirty) return;
@@ -316,6 +334,9 @@ export default function MarkdownStudioPage(): React.ReactElement {
             {[shareStatus, saveStatus].filter(Boolean).join(" • ")}
           </div>
         )}
+
+        <div id="mdx-toolbar-host" className="mdx-toolbar-host" />
+
         {shareUrl && (
           <div style={{ ...styles.controlsSection, padding: "12px 16px" }}>
             <div style={{ ...styles.labelSection, flex: 2 }}>

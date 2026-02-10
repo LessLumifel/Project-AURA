@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { styles } from "../styles";
 
@@ -59,27 +60,36 @@ const MDXEditorClient = dynamic(async () => {
           sandpackPlugin(),
           diffSourcePlugin(),
           toolbarPlugin({
-            toolbarContents: () => (
-              <DiffSourceToggleWrapper>
-                <UndoRedo />
-                <BoldItalicUnderlineToggles />
-                <CodeToggle />
-                <ListsToggle />
-                <BlockTypeSelect />
-                <CreateLink />
-                <InsertImage />
-                <InsertTable />
-                <InsertCodeBlock />
-                <InsertThematicBreak />
-              </DiffSourceToggleWrapper>
-            )
+            toolbarContents: () => {
+              const host = typeof document !== "undefined" ? document.getElementById("mdx-toolbar-host") : null;
+              if (!host) return null;
+              return createPortal(
+                <div className="mdxeditor-toolbar">
+                  <DiffSourceToggleWrapper>
+                    <UndoRedo />
+                    <BoldItalicUnderlineToggles />
+                    <CodeToggle />
+                    <ListsToggle />
+                    <BlockTypeSelect />
+                    <CreateLink />
+                    <InsertImage />
+                    <InsertTable />
+                    <InsertCodeBlock />
+                    <InsertThematicBreak />
+                  </DiffSourceToggleWrapper>
+                </div>,
+                host
+              );
+            }
           })
         ]}
       />
     </React.Suspense>
   );
 
-  return { default: Component };
+  return {
+    default: Component
+  };
 }, { ssr: false });
 
 type Props = {
