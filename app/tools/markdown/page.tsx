@@ -341,7 +341,11 @@ export default function MarkdownStudioPage(): React.ReactElement {
           currentId={currentDraftId}
           onSelect={handleSelectDraft}
           onSave={handleSave}
-          onDelete={handleDeleteDraft}
+          onDelete={() => {
+            if (!currentDraftId) return;
+            const confirmed = window.confirm("ยืนยันการลบงานนี้ถาวร?");
+            if (confirmed) handleDeleteDraft();
+          }}
           draftTitle={draftTitle}
           onTitleChange={setDraftTitle}
           autosave={autosave}
@@ -437,6 +441,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
             </button>
           </div>
         )}
+
       </div>
     </div>
   );
