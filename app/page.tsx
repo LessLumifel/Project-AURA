@@ -1,3 +1,7 @@
+ "use client";
+
+import { FormEvent, useMemo, useState } from "react";
+
 const tools = [
   {
     title: "แปลงไฟล์อัจฉริยะ",
@@ -48,8 +52,91 @@ const pipeline = [
 ];
 
 export default function HomePage() {
+  const [password, setPassword] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+  const [error, setError] = useState("");
+
+  const lengthWarning = useMemo(() => {
+    if (password.length >= 1 && password.length <= 7) return "ให้ใส่รหัสผ่าน 8 หลัก";
+    return "";
+  }, [password.length]);
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (password === "12345") {
+      setUnlocked(true);
+      setError("");
+      return;
+    }
+
+    if (password.length !== 8) {
+      setError("ให้ใส่รหัสผ่าน 8 หลัก");
+      return;
+    }
+
+    setError("รหัสผ่านไม่ถูกต้อง");
+  };
+
   return (
     <main>
+      {!unlocked && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(8, 13, 30, 0.78)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16
+          }}
+        >
+          <form
+            onSubmit={onSubmit}
+            style={{
+              width: "min(480px, 100%)",
+              background: "rgba(14, 22, 46, 0.96)",
+              border: "1px solid rgba(130, 170, 255, 0.35)",
+              borderRadius: 18,
+              padding: 24,
+              boxShadow: "0 24px 70px rgba(2, 7, 22, 0.55)",
+              color: "var(--ink-0)"
+            }}
+          >
+            <h2 style={{ margin: 0, marginBottom: 8 }}>ยืนยันการเข้าใช้งาน</h2>
+            <p style={{ margin: 0, marginBottom: 14, color: "var(--ink-1)" }}>กรุณาใส่รหัสผ่าน 8 ตัว</p>
+            <input
+              value={password}
+              onChange={(e) => {
+                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 8);
+                setPassword(digitsOnly);
+                setError("");
+              }}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={8}
+              placeholder="รหัสผ่าน 8 หลัก"
+              autoFocus
+              style={{
+                width: "100%",
+                height: 44,
+                borderRadius: 10,
+                border: "1px solid rgba(130, 170, 255, 0.45)",
+                background: "rgba(255, 255, 255, 0.95)",
+                padding: "0 12px",
+                fontSize: 16
+              }}
+            />
+            <div style={{ minHeight: 22, marginTop: 8, color: "#ffc2c2", fontSize: 14 }}>
+              {error || lengthWarning}
+            </div>
+            <button className="button primary" type="submit" style={{ marginTop: 8 }}>
+              เข้าสู่ระบบ
+            </button>
+          </form>
+        </div>
+      )}
       <div className="container">
         <nav className="nav">
           <div className="brand">
