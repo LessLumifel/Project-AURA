@@ -20,9 +20,10 @@ const tools = [
     tag: "Utility"
   },
   {
-    title: "ชุดจัดการไฟล์",
-    desc: "ย่อ/ขยาย แยก รวม เปลี่ยนชื่อไฟล์แบบเป็นชุด",
-    tag: "Utility"
+    title: "Media Manager",
+    desc: "จัดการรูปและเอกสารจาก database: view, update, delete",
+    tag: "Utility",
+    href: "/tools/media"
   },
   {
     title: "Workflow Planner",
@@ -202,17 +203,38 @@ export default function HomePage() {
         <div className="section-title">เครื่องมือหลักและแผนในอนาคต</div>
         <div className="tool-grid">
           {tools.map((tool) => {
+            const available = Boolean(tool.href);
             const Card = (
-              <article key={tool.title} className="tool-card">
-                <span style={{ fontSize: "0.75rem", color: "var(--ice-2)", textTransform: "uppercase" }}>
-                  {tool.tag}
-                </span>
+              <article
+                className="tool-card"
+                style={{
+                  opacity: available ? 1 : 0.72,
+                  border: available ? undefined : "1px dashed rgba(148, 163, 184, 0.45)"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--ice-2)", textTransform: "uppercase" }}>
+                    {tool.tag}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      letterSpacing: "0.02em",
+                      color: available ? "#79ffd0" : "var(--ink-2)",
+                      border: available ? "1px solid rgba(121, 255, 208, 0.45)" : "1px solid rgba(148, 163, 184, 0.35)",
+                      borderRadius: 999,
+                      padding: "2px 8px"
+                    }}
+                  >
+                    {available ? "พร้อมใช้งาน" : "เร็วๆ นี้"}
+                  </span>
+                </div>
                 <h3>{tool.title}</h3>
                 <p>{tool.desc}</p>
               </article>
             );
 
-            if (!tool.href) return Card;
+            if (!tool.href) return <div key={tool.title}>{Card}</div>;
 
             return (
               <a key={tool.title} href={tool.href} className="tool-card-link" aria-label={tool.title}>

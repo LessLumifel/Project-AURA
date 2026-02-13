@@ -118,10 +118,59 @@ export async function GET(_: Request, context: { params: { id: string } }) {
 
     const raw = await bodyToString(res.Body as ReadableStream<Uint8Array>);
     const parsed = JSON.parse(raw) as Draft;
-console.log("Fuckkkkkkkkkkkkkkkkkkk");
     return Response.json(parsed);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load draft";
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request, context: { params: { id: string } }) {
+  try {
+    const bucket = requireEnv("R2_BUCKET");
+    const client = getR2Client();
+    const id = context.params.id;
+    const payload = (await request.json()) as Partial<Pick<Draft, "title" | "filename">>;
+
+    const currentRes = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: `${DRAFT_PREFIX}${id}.json`
+      })
+    );
+    if (!currentRes.Body) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    const raw = await bodyToString(currentRes.Body as ReadableStream<Uint8Array>);
+    const current = JSON.parse(raw) as Draft;
+
+    const updatedAt = new Date().toISOString();
+    const next: Draft = {
+      ...current,
+      title: payload.title?.trim() || current.title,
+      filename: payload.filename?.trim() || current.filename,
+      updatedAt
+    };
+
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: `${DRAFT_PREFIX}${id}.json`,
+        Body: JSON.stringify(next, null, 2),
+        ContentType: "application/json"
+      })
+    );
+
+    const index = await readIndex(client, bucket);
+    const nextIndex = [
+      { id, title: next.title, filename: next.filename, updatedAt },
+      ...index.filter((item) => item.id !== id)
+    ];
+    await writeIndex(client, bucket, nextIndex);
+
+    return Response.json({ id, title: next.title, filename: next.filename, updatedAt });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update draft";
     return Response.json({ error: message }, { status: 500 });
   }
 }

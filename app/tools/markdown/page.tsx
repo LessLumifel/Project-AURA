@@ -10,6 +10,7 @@ import type { MDXEditorMethods } from "@mdxeditor/editor";
 import SavePanel from "./components/SavePanel";
 import { styles } from "./styles";
 import {
+  buildUploadImageName,
   ImageAsset,
   ensureExt,
   fileToDataUrl,
@@ -252,7 +253,8 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const uploadAndEmbed = useCallback(
     async (file: File) => {
       if (!file) return "";
-      const safe = slugifyFilename(file.name || "image.png") || "image.png";
+      const uploadName = buildUploadImageName(file.name || "image.png", filename);
+      const safe = uploadName;
       const previewUrl = URL.createObjectURL(file);
 
       const prev = imagesRef.current.get(safe);
@@ -263,7 +265,12 @@ export default function MarkdownStudioPage(): React.ReactElement {
 
       const uploadUrl = uploadApiUrl || `${window.location.origin}/api/upload`;
       const form = new FormData();
-      form.append("file", file);
+      const uploadFile = new File([file], uploadName, {
+        type: file.type || "application/octet-stream",
+        lastModified: file.lastModified
+      });
+      form.append("file", uploadFile);
+      form.append("filename", uploadName);
 
       try {
         const res = await fetch(uploadUrl, { method: "POST", body: form });
@@ -279,7 +286,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
         return previewUrl;
       }
     },
-    [uploadApiUrl]
+    [filename, uploadApiUrl]
   );
 
   const insertImageAtCursor = useCallback(
