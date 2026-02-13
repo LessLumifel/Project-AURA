@@ -26,6 +26,12 @@ const tools = [
     href: "/tools/media"
   },
   {
+    title: "Pandoc Converter",
+    desc: "แปลง Word เป็น Markdown และอัปโหลดรูปจากเอกสารเข้าระบบ",
+    tag: "Core",
+    href: "/tools/pandoc"
+  },
+  {
     title: "Workflow Planner",
     desc: "ออกแบบลำดับงาน ทำเทมเพลต และแชร์ให้ทีม",
     tag: "Future"
