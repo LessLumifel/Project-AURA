@@ -68,16 +68,11 @@ main {
   letter-spacing: 0.04em;
 }
 
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  display: grid;
-  place-items: center;
-  box-shadow: 0 10px 30px rgba(119, 243, 255, 0.35);
-  color: #071020;
-  font-weight: 700;
+.brand-logo-image {
+  display: block;
+  width: clamp(150px, 20vw, 220px);
+  height: auto;
+  filter: drop-shadow(0 10px 24px rgba(82, 214, 255, 0.28));
 }
 
 .nav-actions {

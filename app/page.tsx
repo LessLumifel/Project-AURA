@@ -147,13 +147,7 @@ export default function HomePage() {
       <div className="container">
         <nav className="nav">
           <div className="brand">
-            <div className="brand-mark">AU</div>
-            <div>
-              <div>AURA Toolbox</div>
-              <small style={{ color: "var(--ink-2)", fontFamily: "DM Mono, monospace" }}>
-                one hub, infinite utilities
-              </small>
-            </div>
+            <img src="/logo-aura.svg" alt="AURA Logo" className="brand-logo-image" />
           </div>
           <div className="nav-actions">
             <a className="button" href="#tools">

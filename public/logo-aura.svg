@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">AURA Logo</title>
+  <desc id="desc">Project AURA emblem and wordmark in cyan-blue gradient.</desc>
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#2ee8ff" stop-opacity="0.55" />
+      <stop offset="65%" stop-color="#1a6cc9" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#0b1020" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c8f6ff" />
+      <stop offset="55%" stop-color="#31d9ff" />
+      <stop offset="100%" stop-color="#2187e6" />
+    </linearGradient>
+    <linearGradient id="aGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d7fbff" />
+      <stop offset="45%" stop-color="#56e8ff" />
+      <stop offset="100%" stop-color="#1a8fff" />
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="500" fill="url(#bgGlow)" />
+
+  <g transform="translate(120,60)">
+    <circle cx="160" cy="160" r="128" fill="none" stroke="url(#ringGrad)" stroke-width="18" filter="url(#softGlow)" />
+    <circle cx="160" cy="160" r="102" fill="#0b2b6a" stroke="#2ddcff" stroke-width="4" />
+    <circle cx="160" cy="160" r="88" fill="none" stroke="#2ad6ff" stroke-width="2" opacity="0.6" />
+
+    <path d="M66 238 L160 64 L254 238 L224 238 L160 116 L96 238 Z" fill="url(#aGrad)" stroke="#c9f7ff" stroke-width="3" />
+    <path d="M122 214 L160 185 L198 214" fill="none" stroke="#8ff0ff" stroke-width="6" stroke-linecap="round" />
+  </g>
+
+  <g transform="translate(410,170)">
+    <text x="0" y="120" fill="#f1fbff" font-size="132" font-family="Space Grotesk, Arial, sans-serif" font-weight="700" letter-spacing="10">
+      AURA
+    </text>
+    <text x="2" y="182" fill="#9fe5ff" font-size="50" font-family="DM Mono, Consolas, monospace" letter-spacing="3">
+      Project : AURA
+    </text>
+  </g>
+</svg>

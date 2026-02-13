@@ -4,7 +4,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "AURA Toolbox",
-  description: "ศูนย์รวมเครื่องมืออเนกประสงค์สำหรับงานไฟล์และครีเอทีฟโฟลว์"
+  description: "ศูนย์รวมเครื่องมืออเนกประสงค์สำหรับงานไฟล์และครีเอทีฟโฟลว์",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg"
+  }
 };
 
 export default function RootLayout({
