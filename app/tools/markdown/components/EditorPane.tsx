@@ -27,7 +27,9 @@ const MDXEditorClient = dynamic(async () => {
     sandpackPlugin,
     frontmatterPlugin,
     diffSourcePlugin,
+    jsxPlugin,
     toolbarPlugin,
+    GenericJsxEditor,
     UndoRedo,
     BoldItalicUnderlineToggles,
     CodeToggle,
@@ -69,6 +71,17 @@ const MDXEditorClient = dynamic(async () => {
             codeBlockPlugin(),
             sandpackPlugin(),
             diffSourcePlugin(),
+            jsxPlugin({
+              jsxComponentDescriptors: [
+                {
+                  name: "span",
+                  kind: "text",
+                  props: [{ name: "style", type: "string" }],
+                  hasChildren: true,
+                  Editor: GenericJsxEditor
+                }
+              ]
+            }),
             toolbarPlugin({
               toolbarContents: () => {
                 const host = typeof document !== "undefined" ? document.getElementById("mdx-toolbar-host") : null;
@@ -111,6 +124,7 @@ type Props = {
   onPasteFiles: (files: File[]) => void;
   onContextUpload: () => void;
   onShowContextTools: (x: number, y: number, range: Range | null) => void;
+  onSelectionChange: (range: Range | null) => void;
   onEditorReady: (methods: MDXEditorMethods | null) => void;
 };
 
@@ -122,11 +136,33 @@ export default function EditorPane({
   onPasteFiles,
   onContextUpload,
   onShowContextTools,
+  onSelectionChange,
   onEditorReady
 }: Props): React.ReactElement {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const captureSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      onSelectionChange(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const root = wrapperRef.current;
+    if (!root) return;
+    const startInEditor = root.contains(range.startContainer);
+    const endInEditor = root.contains(range.endContainer);
+    if (!startInEditor || !endInEditor) return;
+    onSelectionChange(range.cloneRange());
+  };
+
   return (
     <div
+      ref={wrapperRef}
       style={styles.editorArea}
+      onMouseUp={captureSelection}
+      onKeyUp={captureSelection}
       onPasteCapture={(event) => {
         const fileList = Array.from(event.clipboardData?.files || []);
         if (fileList.length) {

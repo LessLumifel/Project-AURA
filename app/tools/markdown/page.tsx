@@ -44,9 +44,11 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [autosave, setAutosave] = useState(true);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [textColor, setTextColor] = useState("#2563eb");
   const pasteInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MDXEditorMethods | null>(null);
   const contextSelectionRef = useRef<Range | null>(null);
+  const lastSelectionRef = useRef<Range | null>(null);
   const [contextTools, setContextTools] = useState<{ x: number; y: number; visible: boolean }>({
     x: 0,
     y: 0,
@@ -327,6 +329,33 @@ export default function MarkdownStudioPage(): React.ReactElement {
     [insertImageAtCursor]
   );
 
+  const colorSelectedTextFromContext = useCallback(() => {
+    if (!contextSelectionRef.current && lastSelectionRef.current) {
+      contextSelectionRef.current = lastSelectionRef.current;
+    }
+    const selectedText = contextSelectionRef.current?.toString() ?? "";
+    if (!selectedText.trim()) {
+      setShareStatus("กรุณาเลือกข้อความก่อนเปลี่ยนสี");
+      return;
+    }
+
+    const snippet = `<span style="color: ${textColor};">${selectedText}</span>`;
+    if (editorRef.current?.insertMarkdown) {
+      editorRef.current.focus(
+        () => {
+          restoreContextSelection();
+          editorRef.current?.insertMarkdown(snippet);
+          setIsDirty(true);
+          setContextTools((prev) => ({ ...prev, visible: false }));
+        },
+        { preventScroll: true }
+      );
+      return;
+    }
+
+    setShareStatus("ไม่สามารถเปลี่ยนสีข้อความได้");
+  }, [restoreContextSelection, textColor]);
+
   return (
     <div style={styles.page} className="markdown-page">
       <div
@@ -397,8 +426,11 @@ export default function MarkdownStudioPage(): React.ReactElement {
           onPasteFiles={handlePasteFiles}
           onContextUpload={() => pasteInputRef.current?.click()}
           onShowContextTools={(x, y, range) => {
-            contextSelectionRef.current = range;
+            contextSelectionRef.current = range ?? lastSelectionRef.current;
             setContextTools({ x, y, visible: true });
+          }}
+          onSelectionChange={(range) => {
+            lastSelectionRef.current = range;
           }}
           onEditorReady={(methods) => {
             editorRef.current = methods;
@@ -424,6 +456,20 @@ export default function MarkdownStudioPage(): React.ReactElement {
             style={{ left: contextTools.x, top: contextTools.y }}
             onClick={(event) => event.stopPropagation()}
           >
+            <input
+              type="color"
+              value={textColor}
+              onChange={(event) => setTextColor(event.target.value)}
+              style={{ width: 36, height: 32, border: "none", background: "transparent", cursor: "pointer" }}
+              aria-label="เลือกสีข้อความ"
+            />
+            <button
+              className="button primary"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={colorSelectedTextFromContext}
+            >
+              เปลี่ยนสีข้อความ
+            </button>
             <button
               className="button primary"
               onClick={() => {
