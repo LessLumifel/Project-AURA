@@ -1,8 +1,13 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { z } from "zod";
 import { buildPublicUrl, getR2Client, MediaMeta, readMediaIndex, requireEnv, writeMediaIndex } from "../media/store";
+import { jsonResponse } from "../../../lib/api/monitoring";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const FilenameSchema = z.string().max(220).optional();
 
 function sanitizeBaseName(name: string) {
   return name
@@ -33,13 +38,18 @@ function buildUploadKey(baseName: string, ext: string) {
 }
 
 export async function POST(request: Request) {
+  const start = Date.now();
   try {
     const formData = await request.formData();
     const file = formData.get("file");
-    const preferredFilename = String(formData.get("filename") || "");
+    const filenameParsed = FilenameSchema.safeParse(formData.get("filename")?.toString());
+    const preferredFilename = filenameParsed.success ? filenameParsed.data || "" : "";
 
     if (!(file instanceof File)) {
-      return Response.json({ error: "No file uploaded" }, { status: 400 });
+      return jsonResponse({ error: "No file uploaded" }, { route: "POST /api/upload", status: 400, startMs: start });
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return jsonResponse({ error: "File too large (max 20MB)" }, { route: "POST /api/upload", status: 413, startMs: start });
     }
 
     const bucket = requireEnv("R2_BUCKET");
@@ -104,9 +114,9 @@ export async function POST(request: Request) {
     const nextIndex = [entry, ...currentIndex];
     await writeMediaIndex(client, bucket, nextIndex);
 
-    return Response.json({ id, url, key });
+    return jsonResponse({ id, url, key }, { route: "POST /api/upload", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Upload failed";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "POST /api/upload", status: 500, startMs: start });
   }
 }

@@ -1,148 +1,61 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { z } from "zod";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { Draft, DraftMeta, getR2Client, requireEnv } from "../store";
+import { DRAFT_INDEX_KEY, DRAFT_PREFIX } from "../store";
+import { readJsonArray, readJsonObject, writeJson } from "../../shared/r2";
+import { jsonResponse } from "../../../../lib/api/monitoring";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type DraftMeta = {
-  id: string;
-  title: string;
-  filename: string;
-  updatedAt: string;
-};
+const DraftUpdateSchema = z.object({
+  title: z.string().min(1).max(160).optional(),
+  filename: z.string().min(1).max(220).optional()
+});
 
-type Draft = DraftMeta & { markdown: string };
-
-const INDEX_KEY = "drafts/index.json";
-const DRAFT_PREFIX = "drafts/";
-
-function requireEnv(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing env: ${name}`);
-  return value;
+async function readIndex(client: ReturnType<typeof getR2Client>, bucket: string) {
+  return readJsonArray<DraftMeta>(client, bucket, DRAFT_INDEX_KEY);
 }
 
-function getR2Client() {
-  const accountId = requireEnv("R2_ACCOUNT_ID");
-  const accessKeyId = requireEnv("R2_ACCESS_KEY_ID");
-  const secretAccessKey = requireEnv("R2_SECRET_ACCESS_KEY");
-   return new S3Client({
-    region: "APAC",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
-    forcePathStyle: true
-  });
-}
-
-async function bodyToString(body: unknown) {
-  if (!body) return "";
-  if (typeof (body as { transformToString?: () => Promise<string> }).transformToString === "function") {
-    return (body as { transformToString: () => Promise<string> }).transformToString();
-  }
-  if (typeof (body as ReadableStream<Uint8Array>).getReader === "function") {
-    const reader = (body as ReadableStream<Uint8Array>).getReader();
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) chunks.push(value);
-    }
-    const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const buffer = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-    return new TextDecoder().decode(buffer);
-  }
-  if (typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === "function") {
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of body as AsyncIterable<Uint8Array>) {
-      chunks.push(chunk);
-    }
-    const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const buffer = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-    return new TextDecoder().decode(buffer);
-  }
-  return "";
-}
-
-async function readIndex(client: S3Client, bucket: string): Promise<DraftMeta[]> {
-  try {
-    const res = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: INDEX_KEY
-      })
-    );
-    if (!res.Body) return [];
-    const raw = await bodyToString(res.Body);
-    const parsed = JSON.parse(raw) as DraftMeta[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeIndex(client: S3Client, bucket: string, data: DraftMeta[]) {
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(data, null, 2),
-      ContentType: "application/json"
-    })
-  );
+async function writeIndex(client: ReturnType<typeof getR2Client>, bucket: string, data: DraftMeta[]) {
+  await writeJson(client, bucket, DRAFT_INDEX_KEY, data);
 }
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
+  const start = Date.now();
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
     const { id } = await context.params;
-    const res = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: `${DRAFT_PREFIX}${id}.json`
-      })
-    );
 
-    if (!res.Body) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+    const draft = await readJsonObject<Draft>(client, bucket, `${DRAFT_PREFIX}${id}.json`);
+    if (!draft) {
+      return jsonResponse({ error: "Not found" }, { route: "GET /api/drafts/[id]", status: 404, startMs: start });
     }
-
-    const raw = await bodyToString(res.Body as ReadableStream<Uint8Array>);
-    const parsed = JSON.parse(raw) as Draft;
-    return Response.json(parsed);
+    return jsonResponse(draft, { route: "GET /api/drafts/[id]", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load draft";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "GET /api/drafts/[id]", status: 500, startMs: start });
   }
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const start = Date.now();
   try {
+    const parsed = DraftUpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return jsonResponse({ error: "Invalid payload", details: parsed.error.flatten() }, { route: "PATCH /api/drafts/[id]", status: 400, startMs: start });
+    }
+
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
     const { id } = await context.params;
-    const payload = (await request.json()) as Partial<Pick<Draft, "title" | "filename">>;
+    const payload = parsed.data;
 
-    const currentRes = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: `${DRAFT_PREFIX}${id}.json`
-      })
-    );
-    if (!currentRes.Body) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+    const current = await readJsonObject<Draft>(client, bucket, `${DRAFT_PREFIX}${id}.json`);
+    if (!current) {
+      return jsonResponse({ error: "Not found" }, { route: "PATCH /api/drafts/[id]", status: 404, startMs: start });
     }
-    const raw = await bodyToString(currentRes.Body as ReadableStream<Uint8Array>);
-    const current = JSON.parse(raw) as Draft;
 
     const updatedAt = new Date().toISOString();
     const next: Draft = {
@@ -152,30 +65,21 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       updatedAt
     };
 
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: `${DRAFT_PREFIX}${id}.json`,
-        Body: JSON.stringify(next, null, 2),
-        ContentType: "application/json"
-      })
-    );
+    await writeJson(client, bucket, `${DRAFT_PREFIX}${id}.json`, next);
 
     const index = await readIndex(client, bucket);
-    const nextIndex = [
-      { id, title: next.title, filename: next.filename, updatedAt },
-      ...index.filter((item) => item.id !== id)
-    ];
+    const nextIndex = [{ id, title: next.title, filename: next.filename, updatedAt }, ...index.filter((item) => item.id !== id)];
     await writeIndex(client, bucket, nextIndex);
 
-    return Response.json({ id, title: next.title, filename: next.filename, updatedAt });
+    return jsonResponse({ id, title: next.title, filename: next.filename, updatedAt }, { route: "PATCH /api/drafts/[id]", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update draft";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "PATCH /api/drafts/[id]", status: 500, startMs: start });
   }
 }
 
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
+  const start = Date.now();
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
@@ -192,9 +96,9 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
     const nextIndex = index.filter((item) => item.id !== id);
     await writeIndex(client, bucket, nextIndex);
 
-    return Response.json({ ok: true });
+    return jsonResponse({ ok: true }, { route: "DELETE /api/drafts/[id]", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete draft";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "DELETE /api/drafts/[id]", status: 500, startMs: start });
   }
 }

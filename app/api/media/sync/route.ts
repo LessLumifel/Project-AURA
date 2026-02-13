@@ -1,8 +1,15 @@
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { z } from "zod";
 import { buildPublicUrl, getR2Client, MediaMeta, readMediaIndex, requireEnv, writeMediaIndex } from "../store";
+import { jsonResponse } from "../../../../lib/api/monitoring";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const SyncSchema = z.object({
+  prefix: z.string().min(1).max(120).optional(),
+  maxScan: z.coerce.number().int().min(1).max(10000).optional()
+});
 
 function detectContentType(key: string) {
   const lower = key.toLowerCase();
@@ -30,10 +37,14 @@ function toDisplayName(filename: string) {
 }
 
 export async function POST(request: Request) {
+  const start = Date.now();
   try {
-    const payload = (await request.json().catch(() => ({}))) as { prefix?: string; maxScan?: number };
-    const prefix = payload.prefix?.trim() || "uploads/";
-    const maxScan = Math.min(Math.max(Number(payload.maxScan || 3000), 1), 10000);
+    const parsed = SyncSchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) {
+      return jsonResponse({ error: "Invalid payload", details: parsed.error.flatten() }, { route: "POST /api/media/sync", status: 400, startMs: start });
+    }
+    const prefix = parsed.data.prefix?.trim() || "uploads/";
+    const maxScan = parsed.data.maxScan ?? 3000;
 
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
@@ -89,9 +100,9 @@ export async function POST(request: Request) {
       await writeMediaIndex(client, bucket, nextIndex);
     }
 
-    return Response.json({ ok: true, scanned, inserted, prefix, maxScan });
+    return jsonResponse({ ok: true, scanned, inserted, prefix, maxScan }, { route: "POST /api/media/sync", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to sync media";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "POST /api/media/sync", status: 500, startMs: start });
   }
 }

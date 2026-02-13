@@ -1,127 +1,54 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { z } from "zod";
+import { Draft, DraftMeta, getR2Client, requireEnv } from "./store";
+import { DRAFT_INDEX_KEY, DRAFT_PREFIX } from "./store";
+import { readJsonArray, writeJson } from "../shared/r2";
+import { jsonResponse } from "../../../lib/api/monitoring";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type DraftMeta = {
-  id: string;
-  title: string;
-  filename: string;
-  updatedAt: string;
-};
+const DraftCreateSchema = z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().max(160).optional(),
+  filename: z.string().max(220).optional(),
+  markdown: z.string().min(1)
+});
 
-type Draft = DraftMeta & { markdown: string };
-
-const INDEX_KEY = "drafts/index.json";
-const DRAFT_PREFIX = "drafts/";
-
-function requireEnv(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing env: ${name}`);
-  return value;
+async function readIndex(client: ReturnType<typeof getR2Client>, bucket: string) {
+  return readJsonArray<DraftMeta>(client, bucket, DRAFT_INDEX_KEY);
 }
 
-function getR2Client() {
-  const accountId = requireEnv("R2_ACCOUNT_ID");
-  const accessKeyId = requireEnv("R2_ACCESS_KEY_ID");
-  const secretAccessKey = requireEnv("R2_SECRET_ACCESS_KEY");
-
-  return new S3Client({
-    region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey }
-  });
-}
-
-async function bodyToString(body: unknown) {
-  if (!body) return "";
-  if (typeof (body as { transformToString?: () => Promise<string> }).transformToString === "function") {
-    return (body as { transformToString: () => Promise<string> }).transformToString();
-  }
-  if (typeof (body as ReadableStream<Uint8Array>).getReader === "function") {
-    const reader = (body as ReadableStream<Uint8Array>).getReader();
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) chunks.push(value);
-    }
-    const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const buffer = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-    return new TextDecoder().decode(buffer);
-  }
-  if (typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === "function") {
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of body as AsyncIterable<Uint8Array>) {
-      chunks.push(chunk);
-    }
-    const total = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const buffer = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-    return new TextDecoder().decode(buffer);
-  }
-  return "";
-}
-
-async function readIndex(client: S3Client, bucket: string): Promise<DraftMeta[]> {
-  try {
-    const res = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: INDEX_KEY
-      })
-    );
-    if (!res.Body) return [];
-    const raw = await bodyToString(res.Body);
-    const parsed = JSON.parse(raw) as DraftMeta[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeIndex(client: S3Client, bucket: string, data: DraftMeta[]) {
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: INDEX_KEY,
-      Body: JSON.stringify(data, null, 2),
-      ContentType: "application/json"
-    })
-  );
+async function writeIndex(client: ReturnType<typeof getR2Client>, bucket: string, data: DraftMeta[]) {
+  await writeJson(client, bucket, DRAFT_INDEX_KEY, data);
 }
 
 export async function GET() {
+  const start = Date.now();
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-
     const index = await readIndex(client, bucket);
     const sorted = [...index].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-    return Response.json(sorted);
+    return jsonResponse(sorted, {
+      route: "GET /api/drafts",
+      startMs: start,
+      cacheControl: "private, max-age=8, stale-while-revalidate=20"
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list drafts";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "GET /api/drafts", status: 500, startMs: start });
   }
 }
 
 export async function POST(request: Request) {
+  const start = Date.now();
   try {
-    const payload = (await request.json()) as Partial<Draft>;
-    if (!payload.markdown) {
-      return Response.json({ error: "Missing markdown" }, { status: 400 });
+    const parsed = DraftCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return jsonResponse({ error: "Invalid payload", details: parsed.error.flatten() }, { route: "POST /api/drafts", status: 400, startMs: start });
     }
 
+    const payload = parsed.data;
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
 
@@ -138,25 +65,15 @@ export async function POST(request: Request) {
       updatedAt
     };
 
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: `${DRAFT_PREFIX}${id}.json`,
-        Body: JSON.stringify(draft, null, 2),
-        ContentType: "application/json"
-      })
-    );
+    await writeJson(client, bucket, `${DRAFT_PREFIX}${id}.json`, draft);
 
     const index = await readIndex(client, bucket);
-    const nextIndex = [
-      { id, title, filename, updatedAt },
-      ...index.filter((item) => item.id !== id)
-    ];
+    const nextIndex = [{ id, title, filename, updatedAt }, ...index.filter((item) => item.id !== id)];
     await writeIndex(client, bucket, nextIndex);
 
-    return Response.json({ id, title, filename, updatedAt });
+    return jsonResponse({ id, title, filename, updatedAt }, { route: "POST /api/drafts", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to save draft";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "POST /api/drafts", status: 500, startMs: start });
   }
 }

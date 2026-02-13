@@ -338,23 +338,26 @@ export default function MediaManagerPage(): React.ReactElement {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ borderRadius: 10, overflow: "hidden", background: "rgba(4, 10, 24, 0.9)", minHeight: 210, display: "grid", placeItems: "center" }}>
                 {isImage(selected.contentType) ? (
-                  <img src={selected.url} alt={selected.displayName} style={{ width: "100%", maxHeight: 320, objectFit: "contain" }} />
+                  <img src={selected.url} alt={selected.displayName} loading="lazy" style={{ width: "100%", maxHeight: 320, objectFit: "contain" }} />
                 ) : selected.source === "draft" ? (
                   <iframe
                     src={selected.url}
                     title={selected.displayName}
+                    loading="lazy"
                     style={{ width: "100%", height: 360, border: "none", background: "#0b1226" }}
                   />
                 ) : isPdf(selected.contentType, selected.filename) ? (
                   <iframe
                     src={selected.url}
                     title={selected.displayName}
+                    loading="lazy"
                     style={{ width: "100%", height: 360, border: "none", background: "#0b1226" }}
                   />
                 ) : isTextLike(selected.contentType, selected.filename) ? (
                   <iframe
                     src={selected.url}
                     title={selected.displayName}
+                    loading="lazy"
                     style={{ width: "100%", height: 320, border: "none", background: "#0b1226" }}
                   />
                 ) : (

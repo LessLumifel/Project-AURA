@@ -1,4 +1,6 @@
 import { getR2Client, MediaMeta, readDraftIndex, readMediaIndex, requireEnv, writeMediaIndex } from "./store";
+import { z } from "zod";
+import { jsonResponse } from "../../../lib/api/monitoring";
 
 type MediaListItem = MediaMeta & {
   source: "media" | "draft";
@@ -8,16 +10,47 @@ type MediaListItem = MediaMeta & {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MediaQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  type: z.enum(["all", "image", "document"]).optional(),
+  source: z.enum(["all", "media", "draft"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional()
+});
+
+const MediaCreateSchema = z.object({
+  id: z.string().min(1).optional(),
+  key: z.string().min(1),
+  url: z.string().min(1),
+  filename: z.string().min(1),
+  displayName: z.string().min(1).max(200).optional(),
+  contentType: z.string().min(1).optional(),
+  size: z.coerce.number().min(0).optional(),
+  createdAt: z.string().optional(),
+  tags: z.array(z.string().min(1).max(40)).optional()
+});
+
 export async function GET(request: Request) {
+  const start = Date.now();
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
     const url = new URL(request.url);
-    const q = url.searchParams.get("q")?.trim().toLowerCase() || "";
-    const type = url.searchParams.get("type")?.trim().toLowerCase() || "";
-    const source = url.searchParams.get("source")?.trim().toLowerCase() || "all";
-    const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 30), 1), 100);
-    const offset = Math.max(Number(url.searchParams.get("offset") || 0), 0);
+    const queryParsed = MediaQuerySchema.safeParse({
+      q: url.searchParams.get("q") ?? undefined,
+      type: (url.searchParams.get("type") ?? undefined) as "all" | "image" | "document" | undefined,
+      source: (url.searchParams.get("source") ?? undefined) as "all" | "media" | "draft" | undefined,
+      limit: url.searchParams.get("limit") ?? 30,
+      offset: url.searchParams.get("offset") ?? 0
+    });
+    if (!queryParsed.success) {
+      return jsonResponse({ error: "Invalid query", details: queryParsed.error.flatten() }, { route: "GET /api/media", status: 400, startMs: start });
+    }
+    const q = queryParsed.data.q?.toLowerCase() || "";
+    const type = queryParsed.data.type || "all";
+    const source = queryParsed.data.source || "all";
+    const limit = queryParsed.data.limit ?? 30;
+    const offset = queryParsed.data.offset ?? 0;
 
     const mediaIndex = source === "draft" ? [] : await readMediaIndex(client, bucket);
     const draftIndex = source === "media" ? [] : await readDraftIndex(client, bucket);
@@ -56,19 +89,24 @@ export async function GET(request: Request) {
     const total = result.length;
     const items = result.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
-    return Response.json({ items, total, hasMore, nextOffset: hasMore ? offset + limit : null });
+    return jsonResponse(
+      { items, total, hasMore, nextOffset: hasMore ? offset + limit : null },
+      { route: "GET /api/media", startMs: start, cacheControl: "private, max-age=8, stale-while-revalidate=20" }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list media";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "GET /api/media", status: 500, startMs: start });
   }
 }
 
 export async function POST(request: Request) {
+  const start = Date.now();
   try {
-    const payload = (await request.json()) as Partial<MediaMeta>;
-    if (!payload.key || !payload.url || !payload.filename) {
-      return Response.json({ error: "Missing required fields" }, { status: 400 });
+    const parsed = MediaCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return jsonResponse({ error: "Invalid payload", details: parsed.error.flatten() }, { route: "POST /api/media", status: 400, startMs: start });
     }
+    const payload = parsed.data;
 
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
@@ -89,9 +127,9 @@ export async function POST(request: Request) {
     const index = await readMediaIndex(client, bucket);
     const nextIndex = [item, ...index.filter((entry) => entry.id !== item.id)];
     await writeMediaIndex(client, bucket, nextIndex);
-    return Response.json(item);
+    return jsonResponse(item, { route: "POST /api/media", startMs: start });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create media";
-    return Response.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { route: "POST /api/media", status: 500, startMs: start });
   }
 }
