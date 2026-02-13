@@ -5,11 +5,11 @@ import type { MediaMeta } from "../store";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_: Request, context: { params: { id: string } }) {
+export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-    const id = context.params.id;
+    const { id } = await context.params;
     const index = await readMediaIndex(client, bucket);
     const item = index.find((entry) => entry.id === id);
     if (!item) return Response.json({ error: "Not found" }, { status: 404 });
@@ -20,12 +20,12 @@ export async function GET(_: Request, context: { params: { id: string } }) {
   }
 }
 
-export async function PATCH(request: Request, context: { params: { id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const payload = (await request.json()) as Partial<Pick<MediaMeta, "displayName" | "tags">>;
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-    const id = context.params.id;
+    const { id } = await context.params;
 
     const index = await readMediaIndex(client, bucket);
     const current = index.find((entry) => entry.id === id);
@@ -47,11 +47,11 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   }
 }
 
-export async function DELETE(_: Request, context: { params: { id: string } }) {
+export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-    const id = context.params.id;
+    const { id } = await context.params;
 
     const index = await readMediaIndex(client, bucket);
     const current = index.find((entry) => entry.id === id);

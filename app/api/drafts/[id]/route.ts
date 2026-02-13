@@ -100,11 +100,11 @@ async function writeIndex(client: S3Client, bucket: string, data: DraftMeta[]) {
   );
 }
 
-export async function GET(_: Request, context: { params: { id: string } }) {
+export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-    const id = context.params.id;
+    const { id } = await context.params;
     const res = await client.send(
       new GetObjectCommand({
         Bucket: bucket,
@@ -125,11 +125,11 @@ export async function GET(_: Request, context: { params: { id: string } }) {
   }
 }
 
-export async function PATCH(request: Request, context: { params: { id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-    const id = context.params.id;
+    const { id } = await context.params;
     const payload = (await request.json()) as Partial<Pick<Draft, "title" | "filename">>;
 
     const currentRes = await client.send(
@@ -175,11 +175,11 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   }
 }
 
-export async function DELETE(_: Request, context: { params: { id: string } }) {
+export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
-    const id = context.params.id;
+    const { id } = await context.params;
 
     await client.send(
       new DeleteObjectCommand({
