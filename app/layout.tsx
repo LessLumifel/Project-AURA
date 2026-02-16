@@ -1,6 +1,7 @@
 import "./globals.css";
 import "@mdxeditor/editor/style.css";
 import type { Metadata } from "next";
+import AuthStatus from "./components/AuthStatus";
 
 export const metadata: Metadata = {
   title: "AURA Toolbox",
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: {
   children: React.ReactNode;
@@ -25,7 +26,21 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <a
+          href="/"
+          aria-label="กลับหน้าแรก"
+          className="fixed left-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-900/20 bg-sky-100/80 p-2 shadow-xl backdrop-blur-xl transition hover:border-cyan-900/35"
+        >
+          <img src="/icon.svg" alt="AURA Home" className="h-7 w-7 brightness-110 saturate-125" />
+        </a>
+        <AuthStatus />
+        <div className="min-h-screen px-4 pb-12 pt-24 sm:px-6 lg:px-8">{children}</div>
+      </body>
     </html>
   );
 }
+
+
+
+

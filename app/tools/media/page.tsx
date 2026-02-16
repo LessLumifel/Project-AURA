@@ -230,7 +230,7 @@ export default function MediaManagerPage(): React.ReactElement {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 30 }}>Media Manager</h1>
-          <p style={{ margin: "8px 0 0", color: "var(--ink-2)" }}>หน้าเดียวสำหรับดู แก้ชื่อ/แท็ก และลบไฟล์ แบบเร็วและเบา server</p>
+          <p style={{ margin: "8px 0 0", color: "#2f5b74" }}>หน้าเดียวสำหรับดู แก้ชื่อ/แท็ก และลบไฟล์ แบบเร็วและเบา server</p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <a className="button" href="/">กลับหน้าแรก</a>
@@ -238,18 +238,18 @@ export default function MediaManagerPage(): React.ReactElement {
         </div>
       </div>
 
-      <section style={{ marginTop: 14, padding: 14, borderRadius: 14, border: "1px solid var(--line)", background: "rgba(12, 20, 44, 0.65)" }}>
+      <section style={{ marginTop: 14, padding: 14, borderRadius: 14, border: "1px solid var(--line)", background: "var(--panel-strong)" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ค้นหาจากชื่อไฟล์, key, tag"
-            style={{ flex: 1, minWidth: 240, height: 38, borderRadius: 9, border: "1px solid #4f6088", padding: "0 10px" }}
+            style={{ flex: 1, minWidth: 240, height: 38, borderRadius: 9, border: "1px solid rgba(8, 145, 178, 0.35)", padding: "0 10px", background: "var(--panel)", color: "#0c4a6e" }}
           />
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as "all" | "image" | "document")}
-            style={{ height: 38, borderRadius: 9, border: "1px solid #4f6088", padding: "0 10px" }}
+            style={{ height: 38, borderRadius: 9, border: "1px solid rgba(8, 145, 178, 0.35)", padding: "0 10px", background: "var(--panel)", color: "#0c4a6e" }}
           >
             <option value="all">ทั้งหมด</option>
             <option value="image">เฉพาะรูป</option>
@@ -258,7 +258,7 @@ export default function MediaManagerPage(): React.ReactElement {
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value as "all" | "media" | "draft")}
-            style={{ height: 38, borderRadius: 9, border: "1px solid #4f6088", padding: "0 10px" }}
+            style={{ height: 38, borderRadius: 9, border: "1px solid rgba(8, 145, 178, 0.35)", padding: "0 10px", background: "var(--panel)", color: "#0c4a6e" }}
           >
             <option value="all">ทุกแหล่ง</option>
             <option value="media">media</option>
@@ -283,18 +283,18 @@ export default function MediaManagerPage(): React.ReactElement {
           </button>
           <button className="button" onClick={() => void fetchItems({ append: false, offset: 0 })}>Refresh</button>
         </div>
-        <div style={{ marginTop: 8, fontSize: 13, color: "var(--ink-2)" }}>
+        <div style={{ marginTop: 8, fontSize: 13, color: "#2f5b74" }}>
           แสดง {items.length} / {total} รายการ | ขนาดในหน้าปัจจุบัน {formatBytes(totalSize)}
         </div>
-        {status ? <div style={{ marginTop: 8, color: "var(--ice-1)", fontSize: 14 }}>{status}</div> : null}
+        {status ? <div style={{ marginTop: 8, color: "#0e7490", fontSize: 14 }}>{status}</div> : null}
       </section>
 
       <section style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
-        <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "rgba(10, 18, 38, 0.9)", overflow: "hidden" }}>
+        <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "var(--panel)", overflow: "hidden" }}>
           <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--line)", fontWeight: 600 }}>รายการไฟล์</div>
           <div style={{ maxHeight: "68vh", overflow: "auto" }}>
             {!loading && items.length === 0 ? (
-              <div style={{ padding: 14, color: "var(--ink-2)" }}>ไม่พบรายการ</div>
+              <div style={{ padding: 14, color: "#2f5b74" }}>ไม่พบรายการ</div>
             ) : null}
             {items.map((item) => (
               <button
@@ -304,23 +304,23 @@ export default function MediaManagerPage(): React.ReactElement {
                   width: "100%",
                   textAlign: "left",
                   border: "none",
-                  borderBottom: "1px solid rgba(78, 96, 136, 0.35)",
-                  background: selectedId === item.id ? "rgba(106, 215, 255, 0.16)" : "transparent",
+                  borderBottom: "1px solid rgba(8, 145, 178, 0.25)",
+                  background: selectedId === item.id ? "rgba(14, 165, 233, 0.18)" : "transparent",
                   padding: "10px 12px",
                   cursor: "pointer"
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-0)" }}>{item.displayName}</div>
-                <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 3 }}>{item.filename}</div>
-                <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#0f2a3d" }}>{item.displayName}</div>
+                <div style={{ fontSize: 12, color: "#2f5b74", marginTop: 3 }}>{item.filename}</div>
+                <div style={{ fontSize: 12, color: "#2f5b74", marginTop: 2 }}>
                   {item.contentType} | {formatBytes(item.size)}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--ice-2)", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: "#0369a1", marginTop: 2 }}>
                   source: {item.source || "media"}
                 </div>
               </button>
             ))}
-            {loading ? <div style={{ padding: 12, color: "var(--ink-2)" }}>กำลังโหลด...</div> : null}
+            {loading ? <div style={{ padding: 12, color: "#2f5b74" }}>กำลังโหลด...</div> : null}
             {!loading && nextOffset !== null ? (
               <div style={{ padding: 10 }}>
                 <button className="button" style={{ width: "100%" }} onClick={() => void fetchItems({ append: true, offset: nextOffset })}>
@@ -331,12 +331,12 @@ export default function MediaManagerPage(): React.ReactElement {
           </div>
         </div>
 
-        <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "rgba(10, 18, 38, 0.9)", padding: 12 }}>
+        <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "var(--panel)", padding: 12 }}>
           {!selected ? (
-            <div style={{ color: "var(--ink-2)" }}>เลือกรายการจากฝั่งซ้ายเพื่อดูรายละเอียด</div>
+            <div style={{ color: "#2f5b74" }}>เลือกรายการจากฝั่งซ้ายเพื่อดูรายละเอียด</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ borderRadius: 10, overflow: "hidden", background: "rgba(4, 10, 24, 0.9)", minHeight: 210, display: "grid", placeItems: "center" }}>
+              <div style={{ borderRadius: 10, overflow: "hidden", background: "rgba(14, 116, 144, 0.12)", minHeight: 210, display: "grid", placeItems: "center" }}>
                 {isImage(selected.contentType) ? (
                   <img src={selected.url} alt={selected.displayName} loading="lazy" style={{ width: "100%", maxHeight: 320, objectFit: "contain" }} />
                 ) : selected.source === "draft" ? (
@@ -344,24 +344,24 @@ export default function MediaManagerPage(): React.ReactElement {
                     src={selected.url}
                     title={selected.displayName}
                     loading="lazy"
-                    style={{ width: "100%", height: 360, border: "none", background: "#0b1226" }}
+                    style={{ width: "100%", height: 360, border: "none", background: "#d0e7f8" }}
                   />
                 ) : isPdf(selected.contentType, selected.filename) ? (
                   <iframe
                     src={selected.url}
                     title={selected.displayName}
                     loading="lazy"
-                    style={{ width: "100%", height: 360, border: "none", background: "#0b1226" }}
+                    style={{ width: "100%", height: 360, border: "none", background: "#d0e7f8" }}
                   />
                 ) : isTextLike(selected.contentType, selected.filename) ? (
                   <iframe
                     src={selected.url}
                     title={selected.displayName}
                     loading="lazy"
-                    style={{ width: "100%", height: 320, border: "none", background: "#0b1226" }}
+                    style={{ width: "100%", height: 320, border: "none", background: "#d0e7f8" }}
                   />
                 ) : (
-                  <div style={{ fontSize: 13, color: "var(--ink-2)", padding: 12, textAlign: "center" }}>
+                  <div style={{ fontSize: 13, color: "#2f5b74", padding: 12, textAlign: "center" }}>
                     Preview not available
                     <div style={{ marginTop: 8 }}>
                       ใช้ปุ่ม Open/Download เพื่อเปิดเอกสาร
@@ -377,22 +377,36 @@ export default function MediaManagerPage(): React.ReactElement {
                 }}
                 style={{ display: "flex", flexDirection: "column", gap: 8 }}
               >
-                <label style={{ fontSize: 12, color: "var(--ink-2)" }}>Display Name</label>
+                <label style={{ fontSize: 12, color: "#2f5b74" }}>Display Name</label>
                 <input
                   value={editName}
                   onChange={(event) => setEditName(event.target.value)}
-                  style={{ height: 38, borderRadius: 8, border: "1px solid #4f6088", padding: "0 10px" }}
+                  style={{
+                    height: 38,
+                    borderRadius: 8,
+                    border: "1px solid rgba(8, 145, 178, 0.35)",
+                    padding: "0 10px",
+                    background: "var(--panel)",
+                    color: "#0c4a6e"
+                  }}
                 />
 
-                <label style={{ fontSize: 12, color: "var(--ink-2)" }}>Tags (comma separated)</label>
+                <label style={{ fontSize: 12, color: "#2f5b74" }}>Tags (comma separated)</label>
                 <input
                   value={editTags}
                   onChange={(event) => setEditTags(event.target.value)}
-                  style={{ height: 38, borderRadius: 8, border: "1px solid #4f6088", padding: "0 10px" }}
+                  style={{
+                    height: 38,
+                    borderRadius: 8,
+                    border: "1px solid rgba(8, 145, 178, 0.35)",
+                    padding: "0 10px",
+                    background: "var(--panel)",
+                    color: "#0c4a6e"
+                  }}
                 />
 
-                <div style={{ fontSize: 12, color: "var(--ink-2)", wordBreak: "break-all" }}>{selected.key}</div>
-                <div style={{ fontSize: 12, color: "var(--ink-2)" }}>
+                <div style={{ fontSize: 12, color: "#2f5b74", wordBreak: "break-all" }}>{selected.key}</div>
+                <div style={{ fontSize: 12, color: "#2f5b74" }}>
                   {selected.contentType} | {formatBytes(selected.size)} | updated {new Date(selected.updatedAt).toLocaleString()}
                 </div>
 
@@ -431,3 +445,4 @@ export default function MediaManagerPage(): React.ReactElement {
     </main>
   );
 }
+

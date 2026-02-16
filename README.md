@@ -9,6 +9,16 @@ npm install
 npm run dev
 ```
 
+### Required env for auth
+
+Add this to `.env.local`:
+
+```bash
+AUTH_SECRET=put-a-random-secret-at-least-32-characters
+```
+
+Without `AUTH_SECRET`, member login/session routes will fail.
+
 ## Deploy to Vercel (Recommended)
 
 1. Push this repo to GitHub/GitLab/Bitbucket.

@@ -25,14 +25,14 @@ export const styles = {
     fontSize: "30px",
     fontWeight: 700,
     margin: 0,
-    color: "var(--ink-0)",
-    background: "linear-gradient(135deg, var(--ice-1) 0%, var(--ice-2) 50%, var(--ice-3) 100%)",
+    color: "#1e293b",
+    background: "linear-gradient(135deg, #0f766e 0%, #0284c7 50%, #0891b2 100%)",
     WebkitBackgroundClip: "text" as const,
     WebkitTextFillColor: "transparent"
   },
   subtitle: {
     fontSize: "14px",
-    color: "var(--ink-2)",
+    color: "#64748b",
     margin: "4px 0 0 0"
   },
   controlsSection: {
@@ -41,10 +41,10 @@ export const styles = {
     alignItems: "center",
     flexWrap: "wrap" as const,
     padding: "16px 18px",
-    backgroundColor: "rgba(12, 20, 44, 0.65)",
+    backgroundColor: "var(--panel)",
     borderRadius: "16px",
-    border: "1px solid var(--line)",
-    boxShadow: "0 12px 32px rgba(6, 10, 24, 0.45)",
+    border: "1px solid rgba(8, 145, 178, 0.35)",
+    boxShadow: "0 10px 24px rgba(8, 145, 178, 0.16)",
     backdropFilter: "blur(10px)"
   },
   labelSection: {
@@ -57,20 +57,20 @@ export const styles = {
   label: {
     fontSize: "14px",
     fontWeight: 600,
-    color: "var(--ink-1)",
+    color: "#155e75",
     whiteSpace: "nowrap" as const
   },
   input: {
     padding: "10px 12px",
     fontSize: "14px",
-    border: "1px solid rgba(148, 163, 184, 0.4)",
+    border: "1px solid rgba(8, 145, 178, 0.35)",
     borderRadius: "10px",
     fontFamily: "inherit",
     transition: "all 0.2s ease",
     flex: 1,
     minWidth: "200px",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    color: "#0b1020"
+    backgroundColor: "rgba(224, 242, 254, 0.95)",
+    color: "#0c4a6e"
   } as React.CSSProperties,
   inputFocus: {
     outline: "none",
@@ -88,56 +88,56 @@ export const styles = {
     whiteSpace: "nowrap" as const
   },
   buttonPrimary: {
-    background: "linear-gradient(135deg, #6ad7ff 0%, #7b7bff 65%, #9a8bff 100%)",
-    color: "#071020",
-    boxShadow: "0 8px 18px rgba(106, 215, 255, 0.25)"
+    background: "linear-gradient(135deg, #67e8f9 0%, #38bdf8 55%, #0ea5e9 100%)",
+    color: "#0f172a",
+    boxShadow: "0 8px 18px rgba(96, 165, 250, 0.25)"
   },
   buttonPrimaryHover: {
     transform: "translateY(-2px)",
-    boxShadow: "0 12px 26px rgba(106, 215, 255, 0.35)"
+    boxShadow: "0 12px 24px rgba(96, 165, 250, 0.35)"
   },
   buttonSecondary: {
-    border: "1px solid rgba(98, 227, 255, 0.35)",
-    color: "var(--ink-0)",
-    backgroundColor: "rgba(16, 28, 60, 0.7)",
+    border: "1px solid rgba(8, 145, 178, 0.4)",
+    color: "#0c4a6e",
+    backgroundColor: "rgba(186, 230, 253, 0.78)",
     transition: "all 0.2s ease"
   },
   buttonSecondaryHover: {
-    backgroundColor: "rgba(98, 227, 255, 0.2)"
+    backgroundColor: "rgba(165, 243, 252, 0.92)"
   },
   fileInputLabel: {
     display: "inline-flex",
     gap: "8px",
     alignItems: "center",
     padding: "10px 18px",
-    border: "1px solid rgba(98, 227, 255, 0.35)",
+    border: "1px solid rgba(8, 145, 178, 0.4)",
     borderRadius: "10px",
-    color: "var(--ink-0)",
+    color: "#0c4a6e",
     fontWeight: 600,
     cursor: "pointer",
-    backgroundColor: "rgba(16, 28, 60, 0.7)",
+    backgroundColor: "rgba(186, 230, 253, 0.78)",
     transition: "all 0.2s ease"
   },
   fileInputLabelHover: {
-    backgroundColor: "rgba(98, 227, 255, 0.25)"
+    backgroundColor: "rgba(165, 243, 252, 0.92)"
   },
   badge: {
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
     padding: "6px 12px",
-    backgroundColor: "rgba(98, 227, 255, 0.2)",
-    color: "var(--ink-0)",
+    backgroundColor: "rgba(165, 243, 252, 0.78)",
+    color: "#0f766e",
     borderRadius: "999px",
     fontSize: "13px",
     fontWeight: 600
   },
   helper: {
     fontSize: "13px",
-    color: "var(--ink-2)"
+    color: "#64748b"
   },
   helperSuccess: {
-    color: "#6fffc7",
+    color: "#047857",
     fontWeight: 600
   },
   editorArea: {
@@ -149,8 +149,8 @@ export const styles = {
     border: "1px solid rgba(148, 163, 184, 0.35)",
     borderRadius: "18px",
     overflow: "auto",
-    boxShadow: "0 20px 50px rgba(6, 10, 24, 0.45)",
-    backgroundColor: "white",
+    boxShadow: "0 14px 28px rgba(8, 145, 178, 0.2)",
+    backgroundColor: "rgba(201, 227, 244, 0.88)",
     flex: 1,
     display: "flex",
     flexDirection: "column" as const,
@@ -160,7 +160,7 @@ export const styles = {
   loadingFallback: {
     padding: "24px",
     fontSize: "14px",
-    color: "var(--ink-2)",
+    color: "#64748b",
     textAlign: "center" as const
   },
   topLinks: {
@@ -168,6 +168,6 @@ export const styles = {
     gap: "12px",
     alignItems: "center",
     fontSize: "14px",
-    color: "var(--ink-1)"
+    color: "#475569"
   }
 };

@@ -47,19 +47,19 @@ export default function MarkdownViewerClient(): React.ReactElement {
   }, [content]);
 
   return (
-    <main style={{ padding: "32px 24px", maxWidth: 900, margin: "0 auto" }}>
+    <main style={{ padding: "32px 24px", maxWidth: 900, margin: "0 auto", color: "#0f2a3d" }}>
       <a className="button" href="/tools/markdown">
         กลับไปแก้ไข
       </a>
       <h1 style={{ marginTop: 20 }}>Markdown Viewer</h1>
-      <p style={{ color: "var(--ink-2)" }}>ลิงก์นี้แสดง Markdown แบบอ่านอย่างเดียว</p>
+      <p style={{ color: "#2f5b74" }}>ลิงก์นี้แสดง Markdown แบบอ่านอย่างเดียว</p>
       <div
         style={{
-          background: "rgba(10, 18, 40, 0.8)",
+          background: "rgba(186, 230, 253, 0.68)",
           border: "1px solid var(--line)",
           borderRadius: 16,
           padding: 20,
-          color: "var(--ink-0)",
+          color: "#0f2a3d",
           lineHeight: 1.7
         }}
         className="viewer-content"
