@@ -125,7 +125,8 @@ export async function findUserByEmail(email: string) {
 
 export async function createUser(input: { email: string; name: string; password: string }): Promise<PublicUser> {
   const users = await readUsers();
-  if (users.length === 0) {
+  const hasApprovedAdmin = users.some((user) => user.role === "admin" && user.approved);
+  if (!hasApprovedAdmin) {
     return createUserWithRole({ ...input, role: "admin", approved: true });
   }
 
