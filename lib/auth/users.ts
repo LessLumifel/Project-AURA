@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { getR2Client, readJsonArray, requireEnv, writeJson } from "../../app/api/shared/r2";
 
 export type UserRole = "member" | "admin";
 
@@ -41,6 +42,7 @@ function resolveDataDir() {
 
 const DATA_DIR = resolveDataDir();
 const USERS_FILE = path.join(DATA_DIR, "users.json");
+const AUTH_USERS_KEY = process.env.AUTH_USERS_KEY || "auth/users.json";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -63,20 +65,18 @@ function hashPassword(password: string, salt: string) {
 }
 
 async function readUsers(): Promise<User[]> {
+  if (shouldUseR2UserStore()) {
+    const client = getR2Client();
+    const bucket = requireEnv("R2_BUCKET");
+    const users = await readJsonArray<User>(client, bucket, AUTH_USERS_KEY);
+    return normalizeUsers(users);
+  }
+
   try {
     const raw = await fs.readFile(USERS_FILE, "utf8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-
-    return parsed.map((item) => {
-      const role = item?.role === "admin" ? "admin" : "member";
-      const approved = item?.approved === false ? false : true;
-      return {
-        ...item,
-        role,
-        approved
-      } as User;
-    });
+    return normalizeUsers(parsed);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return [];
@@ -87,8 +87,34 @@ async function readUsers(): Promise<User[]> {
 }
 
 async function writeUsers(users: User[]) {
+  if (shouldUseR2UserStore()) {
+    const client = getR2Client();
+    const bucket = requireEnv("R2_BUCKET");
+    await writeJson(client, bucket, AUTH_USERS_KEY, users);
+    return;
+  }
+
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
+}
+
+function shouldUseR2UserStore() {
+  if (process.env.AUTH_USERS_STORE === "r2") return true;
+  if (process.env.AUTH_USERS_STORE === "file") return false;
+
+  return Boolean(process.env.VERCEL && process.env.R2_BUCKET && process.env.R2_ACCOUNT_ID);
+}
+
+function normalizeUsers(input: unknown[]): User[] {
+  return input.map((item) => {
+    const role = (item as { role?: string })?.role === "admin" ? "admin" : "member";
+    const approved = (item as { approved?: boolean })?.approved === false ? false : true;
+    return {
+      ...(item as User),
+      role,
+      approved
+    };
+  });
 }
 
 export async function findUserByEmail(email: string) {
@@ -98,6 +124,11 @@ export async function findUserByEmail(email: string) {
 }
 
 export async function createUser(input: { email: string; name: string; password: string }): Promise<PublicUser> {
+  const users = await readUsers();
+  if (users.length === 0) {
+    return createUserWithRole({ ...input, role: "admin", approved: true });
+  }
+
   return createUserWithRole({ ...input, role: "member", approved: false });
 }
 

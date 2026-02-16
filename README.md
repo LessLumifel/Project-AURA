@@ -19,6 +19,18 @@ AUTH_SECRET=put-a-random-secret-at-least-32-characters
 
 Without `AUTH_SECRET`, member login/session routes will fail.
 
+### Recommended for production auth persistence
+
+For Vercel/serverless, set:
+
+```bash
+AUTH_USERS_STORE=r2
+# optional (default: auth/users.json)
+AUTH_USERS_KEY=auth/users.json
+```
+
+This stores users in R2 instead of ephemeral local disk.
+
 ## Deploy to Vercel (Recommended)
 
 1. Push this repo to GitHub/GitLab/Bitbucket.
