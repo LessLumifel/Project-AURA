@@ -1,4 +1,4 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import os from "os";
@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MaxUploadBytes = 30 * 1024 * 1024;
+const MaxStoredDocxBytes = 200 * 1024 * 1024;
 const AllowedDocxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function sanitizeToken(input: string, fallback: string, max = 40) {
@@ -80,7 +81,13 @@ async function runPandoc(inputPath: string, outputPath: string, cwd: string) {
     proc.stderr.on("data", (chunk) => {
       stderr += String(chunk || "");
     });
-    proc.on("error", reject);
+    proc.on("error", (error) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        reject(new Error("Pandoc executable is not available on server runtime"));
+        return;
+      }
+      reject(error);
+    });
     proc.on("close", (code) => {
       if (code === 0) return resolve();
       reject(new Error(stderr || `pandoc failed with code ${code}`));
@@ -111,38 +118,132 @@ function replaceAll(haystack: string, needle: string, replacement: string) {
 }
 
 const FileNameSchema = z.string().max(220).optional();
+const ConvertByKeySchema = z.object({
+  key: z.string().min(1).max(620),
+  filename: z.string().max(220).optional()
+});
+
+type InputDoc = {
+  fileBuffer: Buffer;
+  sourceFileName: string;
+};
+
+class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function bodyToBuffer(body: unknown) {
+  if (!body) return Buffer.alloc(0);
+
+  const withTransform = body as { transformToByteArray?: () => Promise<Uint8Array> };
+  if (typeof withTransform.transformToByteArray === "function") {
+    return Buffer.from(await withTransform.transformToByteArray());
+  }
+
+  if (typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === "function") {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+  }
+
+  if (typeof (body as ReadableStream<Uint8Array>).getReader === "function") {
+    const reader = (body as ReadableStream<Uint8Array>).getReader();
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+  }
+
+  return Buffer.alloc(0);
+}
+
+async function getInputDoc(request: Request): Promise<InputDoc> {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const parsed = ConvertByKeySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      throw new ApiError("Invalid payload", 400);
+    }
+
+    const bucket = requireEnv("R2_BUCKET");
+    const client = getR2Client();
+    const key = parsed.data.key;
+    const sourceFileName = parsed.data.filename || path.basename(key);
+    if (!sourceFileName.toLowerCase().endsWith(".docx")) {
+      throw new ApiError("Only .docx is supported for now", 400);
+    }
+
+    const res = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key
+      })
+    );
+
+    if (!res.Body) {
+      throw new ApiError("Uploaded source file was not found", 404);
+    }
+
+    const fileBuffer = await bodyToBuffer(res.Body);
+    if (fileBuffer.length <= 0) {
+      throw new ApiError("Uploaded source file is empty", 400);
+    }
+    if (fileBuffer.length > MaxStoredDocxBytes) {
+      throw new ApiError("Source file too large", 413);
+    }
+
+    return { fileBuffer, sourceFileName };
+  }
+
+  const formData = await request.formData();
+  const file = formData.get("file");
+  const fileNameParsed = FileNameSchema.safeParse(formData.get("filename")?.toString());
+  const preferredName = fileNameParsed.success ? fileNameParsed.data || "" : "";
+
+  if (!(file instanceof File)) {
+    throw new ApiError("No file uploaded", 400);
+  }
+  if (file.size > MaxUploadBytes) {
+    throw new ApiError("File too large (max 30MB)", 413);
+  }
+
+  const isDocx = file.type === AllowedDocxMime || (file.name || "").toLowerCase().endsWith(".docx");
+  if (!isDocx) {
+    throw new ApiError("Only .docx is supported for now", 400);
+  }
+
+  const sourceFileName = preferredName || file.name || "input.docx";
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  return { fileBuffer, sourceFileName };
+}
 
 export async function POST(request: Request) {
   const start = Date.now();
   let tempRoot = "";
   try {
-    const formData = await request.formData();
-    const file = formData.get("file");
-    const fileNameParsed = FileNameSchema.safeParse(formData.get("filename")?.toString());
-    const preferredName = fileNameParsed.success ? fileNameParsed.data || "" : "";
-
-    if (!(file instanceof File)) {
-      return jsonResponse({ error: "No file uploaded" }, { route: "POST /api/pandoc/convert", status: 400, startMs: start });
-    }
-    if (file.size > MaxUploadBytes) {
-      return jsonResponse({ error: "File too large (max 30MB)" }, { route: "POST /api/pandoc/convert", status: 413, startMs: start });
-    }
-    const isDocx = file.type === AllowedDocxMime || (file.name || "").toLowerCase().endsWith(".docx");
-    if (!isDocx) {
-      return jsonResponse({ error: "Only .docx is supported for now" }, { route: "POST /api/pandoc/convert", status: 400, startMs: start });
-    }
+    const inputDoc = await getInputDoc(request);
 
     const bucket = requireEnv("R2_BUCKET");
     const client = getR2Client();
 
     tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "aura-pandoc-"));
-    const inputName = sanitizeToken(preferredName || file.name || "input.docx", "input", 80);
+    const inputName = sanitizeToken(inputDoc.sourceFileName || "input.docx", "input", 80);
     const inputPath = path.join(tempRoot, inputName.endsWith(".docx") ? inputName : `${inputName}.docx`);
     const outputPath = path.join(tempRoot, "output.md");
     const mediaRoot = path.join(tempRoot, "media");
 
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(inputPath, fileBuffer);
+    await fs.writeFile(inputPath, inputDoc.fileBuffer);
     await runPandoc(inputPath, outputPath, tempRoot);
 
     let markdown = await fs.readFile(outputPath, "utf8");
@@ -158,7 +259,11 @@ export async function POST(request: Request) {
     const addedMedia: MediaMeta[] = [];
     const uploaded: Array<{ filename: string; key: string; url: string }> = [];
 
-    const sourceDocToken = sanitizeToken(path.basename(file.name || inputName, path.extname(file.name || inputName)), "document", 48);
+    const sourceDocToken = sanitizeToken(
+      path.basename(inputDoc.sourceFileName || inputName, path.extname(inputDoc.sourceFileName || inputName)),
+      "document",
+      48
+    );
 
     for (let index = 0; index < mediaFiles.length; index += 1) {
       const filePath = mediaFiles[index];
@@ -238,7 +343,8 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Pandoc convert failed";
-    return jsonResponse({ error: message }, { route: "POST /api/pandoc/convert", status: 500, startMs: start });
+    const status = error instanceof ApiError ? error.status : 500;
+    return jsonResponse({ error: message }, { route: "POST /api/pandoc/convert", status, startMs: start });
   } finally {
     if (tempRoot) {
       try {

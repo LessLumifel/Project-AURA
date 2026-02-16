@@ -9,6 +9,13 @@ type ConvertResult = {
   assets: Array<{ filename: string; key: string; url: string }>;
 };
 
+type PresignResult = {
+  ok: boolean;
+  key: string;
+  uploadUrl: string;
+  requiredHeaders?: Record<string, string>;
+};
+
 function downloadText(filename: string, content: string) {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -34,15 +41,42 @@ export default function PandocToolPage(): React.ReactElement {
   const onConvert = async () => {
     if (!file) return;
     setLoading(true);
-    setStatus("กำลังแปลงเอกสารด้วย Pandoc...");
+    setStatus("กำลังเตรียมอัปโหลดไฟล์...");
     setResult(null);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("filename", file.name);
+      const presignRes = await fetch("/api/pandoc/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          size: file.size,
+          contentType: file.type
+        })
+      });
+      const presignJson = (await presignRes.json()) as PresignResult | { error?: string };
+      if (!presignRes.ok) {
+        throw new Error((presignJson as { error?: string }).error || "Failed to prepare upload");
+      }
+
+      const { uploadUrl, key, requiredHeaders } = presignJson as PresignResult;
+      setStatus("กำลังอัปโหลดไฟล์ต้นฉบับไป storage...");
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: requiredHeaders || {},
+        body: file
+      });
+      if (!uploadRes.ok) {
+        throw new Error(`Upload failed (${uploadRes.status})`);
+      }
+
+      setStatus("กำลังแปลงเอกสารด้วย Pandoc...");
       const res = await fetch("/api/pandoc/convert", {
         method: "POST",
-        body: form
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key,
+          filename: file.name
+        })
       });
       const json = (await res.json()) as ConvertResult | { error?: string };
       if (!res.ok) {
