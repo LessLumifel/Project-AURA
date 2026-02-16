@@ -26,7 +26,20 @@ export type PublicUser = {
   updatedAt: string;
 };
 
-const DATA_DIR = path.join(process.cwd(), "data");
+function resolveDataDir() {
+  const envDir = process.env.AUTH_DATA_DIR ?? process.env.DATA_DIR;
+  if (envDir && envDir.trim()) {
+    return path.isAbsolute(envDir) ? envDir : path.join(process.cwd(), envDir);
+  }
+
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return "/tmp/project-aura-data";
+  }
+
+  return path.join(process.cwd(), "data");
+}
+
+const DATA_DIR = resolveDataDir();
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 function normalizeEmail(email: string) {
