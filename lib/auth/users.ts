@@ -41,7 +41,8 @@ function resolveDataDir() {
 }
 
 const DATA_DIR = resolveDataDir();
-const USERS_FILE = path.join(DATA_DIR, "users.json");
+const LOCAL_USERS_FILE = path.join(DATA_DIR, "local-users.json");
+const LEGACY_LOCAL_USERS_FILE = path.join(DATA_DIR, "users.json");
 const AUTH_USERS_KEY = process.env.AUTH_USERS_KEY || "auth/users.json";
 
 function normalizeEmail(email: string) {
@@ -73,13 +74,24 @@ async function readUsers(): Promise<User[]> {
   }
 
   try {
-    const raw = await fs.readFile(USERS_FILE, "utf8");
+    const raw = await fs.readFile(LOCAL_USERS_FILE, "utf8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return normalizeUsers(parsed);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return [];
+      // Backward compatibility for older local filename.
+      try {
+        const rawLegacy = await fs.readFile(LEGACY_LOCAL_USERS_FILE, "utf8");
+        const parsedLegacy = JSON.parse(rawLegacy);
+        if (!Array.isArray(parsedLegacy)) return [];
+        return normalizeUsers(parsedLegacy);
+      } catch (legacyError) {
+        if ((legacyError as NodeJS.ErrnoException).code === "ENOENT") {
+          return [];
+        }
+        throw legacyError;
+      }
     }
 
     throw error;
@@ -95,7 +107,7 @@ async function writeUsers(users: User[]) {
   }
 
   await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
+  await fs.writeFile(LOCAL_USERS_FILE, JSON.stringify(users, null, 2), "utf8");
 }
 
 function shouldUseR2UserStore() {

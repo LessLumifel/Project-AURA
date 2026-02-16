@@ -31,6 +31,10 @@ AUTH_USERS_KEY=auth/users.json
 
 This stores users in R2 instead of ephemeral local disk.
 
+Storage naming is intentionally separated to avoid confusion:
+- Local/dev file store: `data/local-users.json`
+- R2 object key store: `auth/users.json`
+
 ## Deploy to Vercel (Recommended)
 
 1. Push this repo to GitHub/GitLab/Bitbucket.
