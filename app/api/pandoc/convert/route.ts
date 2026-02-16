@@ -1,8 +1,10 @@
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
+import mammoth from "mammoth";
 import os from "os";
 import path from "path";
+import TurndownService from "turndown";
 import { z } from "zod";
 import { jsonResponse } from "../../../../lib/api/monitoring";
 import { buildPublicUrl, getR2Client, MediaMeta, readMediaIndex, requireEnv, writeMediaIndex } from "../../media/store";
@@ -39,6 +41,16 @@ function detectContentType(file: string) {
   if (lower.endsWith(".gif")) return "image/gif";
   if (lower.endsWith(".svg")) return "image/svg+xml";
   return "application/octet-stream";
+}
+
+function extFromContentType(contentType: string) {
+  const lower = contentType.toLowerCase();
+  if (lower === "image/png") return "png";
+  if (lower === "image/jpeg") return "jpg";
+  if (lower === "image/webp") return "webp";
+  if (lower === "image/gif") return "gif";
+  if (lower === "image/svg+xml") return "svg";
+  return "bin";
 }
 
 function buildUploadKey(baseName: string, ext: string) {
@@ -126,6 +138,12 @@ const ConvertByKeySchema = z.object({
 type InputDoc = {
   fileBuffer: Buffer;
   sourceFileName: string;
+};
+
+type ConvertOutput = {
+  markdown: string;
+  uploaded: Array<{ filename: string; key: string; url: string }>;
+  addedMedia: MediaMeta[];
 };
 
 class ApiError extends Error {
@@ -228,6 +246,175 @@ async function getInputDoc(request: Request): Promise<InputDoc> {
   return { fileBuffer, sourceFileName };
 }
 
+async function uploadBlobWithUniqueKey(options: {
+  bucket: string;
+  client: ReturnType<typeof getR2Client>;
+  baseName: string;
+  ext: string;
+  body: Buffer;
+  contentType: string;
+}) {
+  let key = "";
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const attemptBase = attempt === 0 ? options.baseName : `${options.baseName}-v${attempt + 1}`;
+    key = buildUploadKey(attemptBase, options.ext);
+    try {
+      await options.client.send(
+        new PutObjectCommand({
+          Bucket: options.bucket,
+          Key: key,
+          Body: options.body,
+          ContentType: options.contentType,
+          IfNoneMatch: "*"
+        })
+      );
+      return key;
+    } catch (error) {
+      const statusCode =
+        typeof error === "object" && error && "$metadata" in error
+          ? Number((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode || 0)
+          : 0;
+      if (statusCode !== 412) throw error;
+    }
+  }
+
+  throw new Error(`Failed to generate unique key for extracted asset: ${options.baseName}`);
+}
+
+async function convertWithPandoc(options: {
+  inputDoc: InputDoc;
+  bucket: string;
+  client: ReturnType<typeof getR2Client>;
+  tempRoot: string;
+  sourceDocToken: string;
+}): Promise<ConvertOutput> {
+  const inputName = sanitizeToken(options.inputDoc.sourceFileName || "input.docx", "input", 80);
+  const inputPath = path.join(options.tempRoot, inputName.endsWith(".docx") ? inputName : `${inputName}.docx`);
+  const outputPath = path.join(options.tempRoot, "output.md");
+  const mediaRoot = path.join(options.tempRoot, "media");
+
+  await fs.writeFile(inputPath, options.inputDoc.fileBuffer);
+  await runPandoc(inputPath, outputPath, options.tempRoot);
+
+  let markdown = await fs.readFile(outputPath, "utf8");
+  let mediaFiles: string[] = [];
+  try {
+    await fs.access(mediaRoot);
+    mediaFiles = await listFilesRecursive(mediaRoot);
+  } catch {
+    mediaFiles = [];
+  }
+
+  const nowIso = new Date().toISOString();
+  const addedMedia: MediaMeta[] = [];
+  const uploaded: Array<{ filename: string; key: string; url: string }> = [];
+
+  for (let index = 0; index < mediaFiles.length; index += 1) {
+    const filePath = mediaFiles[index];
+    const rel = path.relative(options.tempRoot, filePath).replace(/\\/g, "/");
+    const basename = path.basename(filePath);
+    const assetToken = sanitizeToken(path.basename(filePath, path.extname(filePath)), "image", 32);
+    const base = buildPandocImageBaseName({
+      docToken: options.sourceDocToken,
+      assetToken,
+      index
+    });
+    const ext = getExt(basename) || "bin";
+    const body = await fs.readFile(filePath);
+    const contentType = detectContentType(filePath);
+    const key = await uploadBlobWithUniqueKey({
+      bucket: options.bucket,
+      client: options.client,
+      baseName: base,
+      ext,
+      body,
+      contentType
+    });
+
+    const url = buildPublicUrl(key);
+    markdown = replaceAll(markdown, rel, url);
+    markdown = replaceAll(markdown, `./${rel}`, url);
+    markdown = replaceAll(markdown, `media/${basename}`, url);
+
+    uploaded.push({ filename: basename, key, url });
+    addedMedia.push({
+      id: crypto.randomUUID(),
+      key,
+      url,
+      filename: basename,
+      displayName: base,
+      contentType,
+      size: body.length,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      tags: ["pandoc", "word-image", `doc-${options.sourceDocToken}`]
+    });
+  }
+
+  return { markdown, uploaded, addedMedia };
+}
+
+async function convertWithMammoth(options: {
+  inputDoc: InputDoc;
+  bucket: string;
+  client: ReturnType<typeof getR2Client>;
+  sourceDocToken: string;
+}): Promise<ConvertOutput> {
+  const nowIso = new Date().toISOString();
+  const addedMedia: MediaMeta[] = [];
+  const uploaded: Array<{ filename: string; key: string; url: string }> = [];
+  let imageIndex = 0;
+
+  const htmlResult = await mammoth.convertToHtml(
+    { buffer: options.inputDoc.fileBuffer },
+    {
+      convertImage: mammoth.images.imgElement(async (image) => {
+        const contentType = image.contentType || "application/octet-stream";
+        const ext = extFromContentType(contentType);
+        const index = imageIndex;
+        imageIndex += 1;
+        const assetToken = sanitizeToken(`mammoth-${index + 1}`, "image", 32);
+        const base = buildPandocImageBaseName({
+          docToken: options.sourceDocToken,
+          assetToken,
+          index
+        });
+        const body = Buffer.from(await image.read("base64"), "base64");
+        const key = await uploadBlobWithUniqueKey({
+          bucket: options.bucket,
+          client: options.client,
+          baseName: base,
+          ext,
+          body,
+          contentType
+        });
+        const url = buildPublicUrl(key);
+        const filename = `${base}.${ext}`;
+
+        uploaded.push({ filename, key, url });
+        addedMedia.push({
+          id: crypto.randomUUID(),
+          key,
+          url,
+          filename,
+          displayName: base,
+          contentType,
+          size: body.length,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          tags: ["mammoth", "word-image", `doc-${options.sourceDocToken}`]
+        });
+
+        return { src: url };
+      })
+    }
+  );
+
+  const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
+  const markdown = turndown.turndown(htmlResult.value || "");
+  return { markdown, uploaded, addedMedia };
+}
+
 export async function POST(request: Request) {
   const start = Date.now();
   let tempRoot = "";
@@ -238,106 +425,46 @@ export async function POST(request: Request) {
     const client = getR2Client();
 
     tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "aura-pandoc-"));
-    const inputName = sanitizeToken(inputDoc.sourceFileName || "input.docx", "input", 80);
-    const inputPath = path.join(tempRoot, inputName.endsWith(".docx") ? inputName : `${inputName}.docx`);
-    const outputPath = path.join(tempRoot, "output.md");
-    const mediaRoot = path.join(tempRoot, "media");
-
-    await fs.writeFile(inputPath, inputDoc.fileBuffer);
-    await runPandoc(inputPath, outputPath, tempRoot);
-
-    let markdown = await fs.readFile(outputPath, "utf8");
-    let mediaFiles: string[] = [];
-    try {
-      await fs.access(mediaRoot);
-      mediaFiles = await listFilesRecursive(mediaRoot);
-    } catch {
-      mediaFiles = [];
-    }
-
-    const nowIso = new Date().toISOString();
-    const addedMedia: MediaMeta[] = [];
-    const uploaded: Array<{ filename: string; key: string; url: string }> = [];
-
     const sourceDocToken = sanitizeToken(
-      path.basename(inputDoc.sourceFileName || inputName, path.extname(inputDoc.sourceFileName || inputName)),
+      path.basename(inputDoc.sourceFileName || "input.docx", path.extname(inputDoc.sourceFileName || "input.docx")),
       "document",
       48
     );
 
-    for (let index = 0; index < mediaFiles.length; index += 1) {
-      const filePath = mediaFiles[index];
-      const rel = path.relative(tempRoot, filePath).replace(/\\/g, "/");
-      const basename = path.basename(filePath);
-      const assetToken = sanitizeToken(path.basename(filePath, path.extname(filePath)), "image", 32);
-      const base = buildPandocImageBaseName({
-        docToken: sourceDocToken,
-        assetToken,
-        index
+    let converted: ConvertOutput;
+    try {
+      converted = await convertWithPandoc({
+        inputDoc,
+        bucket,
+        client,
+        tempRoot,
+        sourceDocToken
       });
-      const ext = getExt(basename) || "bin";
-      const body = await fs.readFile(filePath);
-      const contentType = detectContentType(filePath);
-      let key = "";
-      let uploadOk = false;
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        const attemptBase = attempt === 0 ? base : `${base}-v${attempt + 1}`;
-        key = buildUploadKey(attemptBase, ext);
-        try {
-          await client.send(
-            new PutObjectCommand({
-              Bucket: bucket,
-              Key: key,
-              Body: body,
-              ContentType: contentType,
-              IfNoneMatch: "*"
-            })
-          );
-          uploadOk = true;
-          break;
-        } catch (error) {
-          const statusCode =
-            typeof error === "object" && error && "$metadata" in error
-              ? Number((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode || 0)
-              : 0;
-          if (statusCode !== 412) throw error;
-        }
-      }
-      if (!uploadOk) {
-        throw new Error(`Failed to generate unique key for extracted asset: ${basename}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("Pandoc executable is not available")) {
+        throw error;
       }
 
-      const url = buildPublicUrl(key);
-      markdown = replaceAll(markdown, rel, url);
-      markdown = replaceAll(markdown, `./${rel}`, url);
-      markdown = replaceAll(markdown, `media/${basename}`, url);
-
-      uploaded.push({ filename: basename, key, url });
-      addedMedia.push({
-        id: crypto.randomUUID(),
-        key,
-        url,
-        filename: basename,
-        displayName: base,
-        contentType,
-        size: body.length,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        tags: ["pandoc", "word-image", `doc-${sourceDocToken}`]
+      converted = await convertWithMammoth({
+        inputDoc,
+        bucket,
+        client,
+        sourceDocToken
       });
     }
 
-    if (addedMedia.length) {
+    if (converted.addedMedia.length) {
       const currentIndex = await readMediaIndex(client, bucket);
-      await writeMediaIndex(client, bucket, [...addedMedia, ...currentIndex]);
+      await writeMediaIndex(client, bucket, [...converted.addedMedia, ...currentIndex]);
     }
 
     return jsonResponse(
       {
         ok: true,
-        markdown,
-        uploadedCount: uploaded.length,
-        assets: uploaded
+        markdown: converted.markdown,
+        uploadedCount: converted.uploaded.length,
+        assets: converted.uploaded
       },
       { route: "POST /api/pandoc/convert", startMs: start }
     );
