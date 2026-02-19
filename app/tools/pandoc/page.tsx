@@ -9,12 +9,33 @@ type ConvertResult = {
   assets: Array<{ filename: string; key: string; url: string }>;
 };
 
-type PresignResult = {
-  ok: boolean;
-  key: string;
-  uploadUrl: string;
-  requiredHeaders?: Record<string, string>;
-};
+async function parseJsonOrText<T>(response: Response): Promise<{ json?: T; text?: string }> {
+  const raw = await response.text();
+  if (!raw) return {};
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.toLowerCase().includes("application/json")) {
+    try {
+      return { json: JSON.parse(raw) as T };
+    } catch {
+      return { text: raw };
+    }
+  }
+
+  try {
+    return { json: JSON.parse(raw) as T };
+  } catch {
+    return { text: raw };
+  }
+}
+
+function getErrorMessage(payload: unknown, fallback: string) {
+  if (typeof payload === "object" && payload && "error" in payload) {
+    const error = (payload as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+  }
+  return fallback;
+}
 
 function downloadText(filename: string, content: string) {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -41,46 +62,25 @@ export default function PandocToolPage(): React.ReactElement {
   const onConvert = async () => {
     if (!file) return;
     setLoading(true);
-    setStatus("กำลังเตรียมอัปโหลดไฟล์...");
+    setStatus("กำลังอัปโหลดไฟล์และแปลงเอกสาร...");
     setResult(null);
     try {
-      const presignRes = await fetch("/api/pandoc/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          size: file.size,
-          contentType: file.type
-        })
-      });
-      const presignJson = (await presignRes.json()) as PresignResult | { error?: string };
-      if (!presignRes.ok) {
-        throw new Error((presignJson as { error?: string }).error || "Failed to prepare upload");
-      }
-
-      const { uploadUrl, key, requiredHeaders } = presignJson as PresignResult;
-      setStatus("กำลังอัปโหลดไฟล์ต้นฉบับไป storage...");
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: requiredHeaders || {},
-        body: file
-      });
-      if (!uploadRes.ok) {
-        throw new Error(`Upload failed (${uploadRes.status})`);
-      }
-
-      setStatus("กำลังแปลงเอกสารด้วย Pandoc...");
+      const raw = await file.arrayBuffer();
       const res = await fetch("/api/pandoc/convert", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key,
-          filename: file.name
-        })
+        headers: {
+          "content-type": "application/octet-stream",
+          "x-upload-filename": encodeURIComponent(file.name || "input.docx")
+        },
+        body: raw
       });
-      const json = (await res.json()) as ConvertResult | { error?: string };
+      const parsed = await parseJsonOrText<ConvertResult | { error?: string }>(res);
+      const json = parsed.json;
       if (!res.ok) {
-        throw new Error((json as { error?: string }).error || "Convert failed");
+        throw new Error(getErrorMessage(json, parsed.text || `Convert failed (${res.status})`));
+      }
+      if (!json) {
+        throw new Error("Convert failed: invalid API response");
       }
       setResult(json as ConvertResult);
       setStatus(`เสร็จแล้ว: อัปโหลดรูป ${((json as ConvertResult).uploadedCount || 0).toString()} รายการ`);

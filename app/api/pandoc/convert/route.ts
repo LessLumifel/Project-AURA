@@ -224,26 +224,49 @@ async function getInputDoc(request: Request): Promise<InputDoc> {
     return { fileBuffer, sourceFileName };
   }
 
-  const formData = await request.formData();
-  const file = formData.get("file");
-  const fileNameParsed = FileNameSchema.safeParse(formData.get("filename")?.toString());
-  const preferredName = fileNameParsed.success ? fileNameParsed.data || "" : "";
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const file = formData.get("file");
+    const fileNameParsed = FileNameSchema.safeParse(formData.get("filename")?.toString());
+    const preferredName = fileNameParsed.success ? fileNameParsed.data || "" : "";
 
-  if (!(file instanceof File)) {
-    throw new ApiError("No file uploaded", 400);
-  }
-  if (file.size > MaxUploadBytes) {
-    throw new ApiError("File too large (max 30MB)", 413);
+    if (!(file instanceof File)) {
+      throw new ApiError("No file uploaded", 400);
+    }
+    if (file.size > MaxUploadBytes) {
+      throw new ApiError("File too large (max 30MB)", 413);
+    }
+
+    const isDocx = file.type === AllowedDocxMime || (file.name || "").toLowerCase().endsWith(".docx");
+    if (!isDocx) {
+      throw new ApiError("Only .docx is supported for now", 400);
+    }
+
+    const sourceFileName = preferredName || file.name || "input.docx";
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    return { fileBuffer, sourceFileName };
   }
 
-  const isDocx = file.type === AllowedDocxMime || (file.name || "").toLowerCase().endsWith(".docx");
-  if (!isDocx) {
+  const fallbackFileNameRaw = request.headers.get("x-upload-filename") || "input.docx";
+  const fallbackFileName = decodeURIComponent(fallbackFileNameRaw);
+  if (!fallbackFileName.toLowerCase().endsWith(".docx")) {
     throw new ApiError("Only .docx is supported for now", 400);
   }
 
-  const sourceFileName = preferredName || file.name || "input.docx";
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-  return { fileBuffer, sourceFileName };
+  const raw = Buffer.from(await request.arrayBuffer());
+  const contentLengthHeader = request.headers.get("content-length");
+  const declaredLength = contentLengthHeader ? Number(contentLengthHeader) : 0;
+  if (raw.length <= 0) {
+    throw new ApiError("No file uploaded", 400);
+  }
+  if (raw.length > MaxUploadBytes) {
+    throw new ApiError("File too large (max 30MB)", 413);
+  }
+  if (Number.isFinite(declaredLength) && declaredLength > 0 && raw.length !== declaredLength) {
+    throw new ApiError(`Upload payload truncated (${raw.length}/${declaredLength} bytes)`, 400);
+  }
+
+  return { fileBuffer: raw, sourceFileName: fallbackFileName };
 }
 
 async function uploadBlobWithUniqueKey(options: {
