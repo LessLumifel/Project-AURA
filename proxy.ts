@@ -16,6 +16,17 @@ function unauthorized(request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const isViewerPage = pathname === "/tools/markdown/viewer" || pathname === "/tools/markdown/viewer/";
+  const isViewerDraftRead =
+    request.method === "GET" &&
+    /^\/api\/drafts\/[^/]+\/?$/.test(pathname);
+
+  if (isViewerPage || isViewerDraftRead) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return unauthorized(request);
 
