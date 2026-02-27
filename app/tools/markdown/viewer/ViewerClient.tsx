@@ -47,22 +47,21 @@ export default function MarkdownViewerClient(): React.ReactElement {
   }, [content]);
 
   return (
-    <main style={{ padding: "32px 24px", maxWidth: 900, margin: "0 auto", color: "#0f2a3d" }}>
-      <a className="button" href="/tools/markdown">
-        กลับไปแก้ไข
-      </a>
-      <h1 style={{ marginTop: 20 }}>Markdown Viewer</h1>
-      <p style={{ color: "#2f5b74" }}>ลิงก์นี้แสดง Markdown แบบอ่านอย่างเดียว</p>
-      <div
-        style={{
-          background: "rgba(186, 230, 253, 0.68)",
-          border: "1px solid var(--line)",
-          borderRadius: 16,
-          padding: 20,
-          color: "#0f2a3d",
-          lineHeight: 1.7
-        }}
-        className="viewer-content"
+    <main className="mx-auto w-full max-w-5xl px-4 pb-12 pt-6 sm:px-6">
+      <section className="rounded-3xl border border-slate-300 bg-white p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900">Markdown Viewer</h1>
+            <p className="mt-2 text-sm text-slate-600">ลิงก์นี้แสดง Markdown แบบอ่านอย่างเดียว</p>
+          </div>
+          <a className="button" href="/tools/markdown">
+            กลับไปแก้ไข
+          </a>
+        </div>
+      </section>
+
+      <section
+        className="viewer-content mt-4 rounded-3xl border border-slate-300 bg-white p-6 leading-7 text-slate-900 sm:p-8"
         dangerouslySetInnerHTML={{
           __html: loading
             ? "<p>กำลังโหลด…</p>"
@@ -74,3 +73,4 @@ export default function MarkdownViewerClient(): React.ReactElement {
     </main>
   );
 }
+

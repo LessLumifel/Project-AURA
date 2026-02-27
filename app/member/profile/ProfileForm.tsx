@@ -61,16 +61,16 @@ export default function ProfileForm({ initialName, email, role }: ProfileFormPro
   };
 
   return (
-    <form className="max-w-2xl space-y-4 rounded-3xl border border-cyan-900/20 bg-sky-100/64 p-6 backdrop-blur-md sm:p-8" onSubmit={onSubmit}>
+    <form className="max-w-2xl space-y-4 rounded-3xl border border-slate-300 bg-white p-6 sm:p-8" onSubmit={onSubmit}>
       <h2 className="text-xl font-semibold text-slate-800">แก้ไขข้อมูลสมาชิก</h2>
       <p className="text-sm text-slate-700">แก้ไขชื่อแสดงผลหรือรีเซ็ตรหัสผ่านของบัญชีนี้</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
           <p className="text-xs text-slate-600">Email</p>
           <p className="mt-2 break-all text-sm text-slate-800">{email}</p>
         </div>
-        <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
           <p className="text-xs text-slate-600">Role</p>
           <p className="mt-2 text-sm text-slate-800">{role}</p>
         </div>
@@ -79,7 +79,7 @@ export default function ProfileForm({ initialName, email, role }: ProfileFormPro
       <label className="block text-sm text-slate-700">
         ชื่อที่แสดง
         <input
-          className="mt-1.5 h-11 w-full rounded-xl border border-cyan-900/20 bg-sky-100/78 px-3 text-slate-800 outline-none ring-0 focus:border-cyan-300/50"
+          className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none ring-0 focus:border-slate-400"
           value={name}
           minLength={2}
           onChange={(event) => setName(event.target.value)}
@@ -90,7 +90,7 @@ export default function ProfileForm({ initialName, email, role }: ProfileFormPro
       <label className="block text-sm text-slate-700">
         รหัสผ่านใหม่ (ไม่กรอก = ไม่เปลี่ยน)
         <input
-          className="mt-1.5 h-11 w-full rounded-xl border border-cyan-900/20 bg-sky-100/78 px-3 text-slate-800 outline-none ring-0 focus:border-cyan-300/50"
+          className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none ring-0 focus:border-slate-400"
           type="password"
           minLength={8}
           value={password}

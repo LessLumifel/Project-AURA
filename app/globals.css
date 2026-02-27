@@ -2,19 +2,19 @@
 
 :root {
   color-scheme: light;
-  --bg-900: #deeffb;
-  --bg-800: #cfe6f7;
-  --bg-700: #c2ddf2;
-  --panel: rgba(201, 227, 244, 0.82);
-  --panel-strong: rgba(189, 220, 241, 0.9);
-  --line: rgba(8, 145, 178, 0.32);
-  --text-main: #0f2a3d;
-  --text-muted: #2f5b74;
-  --brand-a: #67e8f9;
-  --brand-b: #38bdf8;
-  --ready-bg: #99f6e4;
-  --ready-border: #14b8a6;
-  --ready-text: #0f766e;
+  --bg-900: #f2f6fa;
+  --bg-800: #ecf2f7;
+  --bg-700: #e5edf4;
+  --panel: #ffffff;
+  --panel-strong: #f8fbfe;
+  --line: rgba(15, 23, 42, 0.14);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --brand-a: #0f5d87;
+  --brand-b: #1a7fb1;
+  --ready-bg: #ecfdf5;
+  --ready-border: #86efac;
+  --ready-text: #166534;
 }
 
 * {
@@ -30,10 +30,7 @@ body {
   margin: 0;
   color: var(--text-main);
   font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
-  background:
-    radial-gradient(1200px 600px at 8% -8%, rgba(103, 232, 249, 0.34), transparent 58%),
-    radial-gradient(900px 520px at 92% -6%, rgba(56, 189, 248, 0.26), transparent 60%),
-    linear-gradient(160deg, var(--bg-900), var(--bg-700));
+  background: linear-gradient(180deg, var(--bg-900), var(--bg-700));
 }
 
 a {
@@ -42,19 +39,21 @@ a {
 }
 
 .button {
-  @apply inline-flex items-center justify-center rounded-full border border-cyan-900/25 px-4 py-2 text-sm font-medium text-cyan-950 transition;
-  background: var(--panel-strong);
+  @apply inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium transition;
+  border-color: var(--line);
+  color: #1e293b;
+  background: var(--panel);
 }
 
 .button:hover {
-  @apply border-cyan-900/40;
+  border-color: rgba(15, 23, 42, 0.26);
   transform: translateY(-1px);
 }
 
 .button.primary {
-  @apply border-transparent text-cyan-950;
+  @apply border-transparent text-white;
   background: linear-gradient(140deg, var(--brand-a), var(--brand-b));
-  box-shadow: 0 10px 24px rgba(8, 145, 178, 0.26);
+  box-shadow: 0 4px 12px rgba(15, 93, 135, 0.2);
 }
 
 button:disabled {
@@ -90,8 +89,8 @@ button:disabled {
   border-radius: 12px;
   z-index: 50;
   background: var(--panel-strong);
-  border: 1px solid rgba(8, 145, 178, 0.32);
-  box-shadow: 0 10px 20px rgba(8, 145, 178, 0.16);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
 .mdxeditor-root {
@@ -115,9 +114,8 @@ button:disabled {
   align-items: center;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(8, 145, 178, 0.32);
+  border: 1px solid var(--line);
   background: var(--panel-strong);
-  backdrop-filter: blur(8px);
   overflow: visible;
 }
 

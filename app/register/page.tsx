@@ -9,7 +9,7 @@ export default async function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl gap-6 rounded-3xl border border-cyan-900/20 bg-sky-100/76 p-6 backdrop-blur-md sm:p-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <main className="mx-auto grid w-full max-w-6xl gap-6 rounded-3xl border border-slate-300 bg-white p-6 sm:p-8 lg:grid-cols-[1.1fr_0.9fr]">
       <section className="space-y-4">
         <h2 className="text-3xl font-semibold text-slate-800">เริ่มต้นใช้งาน AURA</h2>
         <p className="max-w-lg text-sm leading-7 text-slate-700">

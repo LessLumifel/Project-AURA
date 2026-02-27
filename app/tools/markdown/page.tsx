@@ -17,7 +17,16 @@ import {
   slugifyFilename,
   toDocsPath
 } from "./utils";
-import { Draft, DraftMeta, fetchDrafts, loadDraft, removeDraft, saveDraft } from "./drafts";
+import { DraftMeta, fetchDrafts, loadDraft, removeDraft, saveDraft } from "./drafts";
+
+function calculateEditorStats(markdown: string): { words: number; chars: number } {
+  const text = markdown.replace(/```[\s\S]*?```/g, " ").replace(/[#>*`~\-\[\]()]/g, " ");
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return { words, chars: markdown.length };
+}
 
 export default function MarkdownStudioPage(): React.ReactElement {
   const uploadApiUrl = useMemo(
@@ -28,11 +37,11 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [initialMarkdown, setInitialMarkdown] = useState(
     `---\ntitle: ตัวอย่างหน้าเอกสาร\n---\n\n# เริ่มเขียนได้เลย\n`
   );
-
-  const [currentMarkdown, setCurrentMarkdown] = useState(initialMarkdown);
   const markdownRef = useRef(initialMarkdown);
   const imagesRef = useRef<Map<string, ImageAsset>>(new Map());
   const previewToFinalRef = useRef<Map<string, string>>(new Map());
+  const autosaveDebounceRef = useRef<number | null>(null);
+  const statsDebounceRef = useRef<number | null>(null);
   const [editorKey, setEditorKey] = useState(1);
   const [filename, setFilename] = useState("new-doc.md");
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
@@ -45,6 +54,8 @@ export default function MarkdownStudioPage(): React.ReactElement {
   const [autosave, setAutosave] = useState(true);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [autosaveSignal, setAutosaveSignal] = useState(0);
+  const [editorStats, setEditorStats] = useState(() => calculateEditorStats(initialMarkdown));
   const [textColor, setTextColor] = useState("#2563eb");
   const pasteInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MDXEditorMethods | null>(null);
@@ -61,6 +72,12 @@ export default function MarkdownStudioPage(): React.ReactElement {
       .then((items) => setDrafts(items))
       .catch(() => setDrafts([]));
     return () => {
+      if (autosaveDebounceRef.current) {
+        window.clearTimeout(autosaveDebounceRef.current);
+      }
+      if (statsDebounceRef.current) {
+        window.clearTimeout(statsDebounceRef.current);
+      }
       for (const asset of imagesRef.current.values()) {
         URL.revokeObjectURL(asset.previewUrl);
       }
@@ -86,29 +103,37 @@ export default function MarkdownStudioPage(): React.ReactElement {
     return () => observer.disconnect();
   }, []);
 
+  const queueEditorWork = useCallback((value: string) => {
+    if (statsDebounceRef.current) window.clearTimeout(statsDebounceRef.current);
+    statsDebounceRef.current = window.setTimeout(() => {
+      setEditorStats(calculateEditorStats(value));
+    }, 180);
+
+    if (autosaveDebounceRef.current) window.clearTimeout(autosaveDebounceRef.current);
+    autosaveDebounceRef.current = window.setTimeout(() => {
+      setAutosaveSignal((prev) => prev + 1);
+    }, 700);
+  }, []);
 
   useEffect(() => {
     if (!autosave) return;
     if (!currentDraftId) return;
     if (!isDirty) return;
 
-    const id = window.setTimeout(() => {
-      void saveDraft({
-        id: currentDraftId,
-        title: draftTitle,
-        filename,
-        markdown: markdownRef.current
+    setSaveStatus("กำลังบันทึกอัตโนมัติ...");
+    void saveDraft({
+      id: currentDraftId,
+      title: draftTitle,
+      filename,
+      markdown: markdownRef.current
+    })
+      .then((meta) => {
+        setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
+        setSaveStatus("บันทึกอัตโนมัติแล้ว");
+        setIsDirty(false);
       })
-        .then((meta) => {
-          setDrafts((prev) => [meta, ...prev.filter((item) => item.id !== meta.id)]);
-          setSaveStatus("บันทึกอัตโนมัติแล้ว");
-          setIsDirty(false);
-        })
-        .catch(() => setSaveStatus("บันทึกอัตโนมัติล้มเหลว"));
-    }, 1200);
-
-    return () => window.clearTimeout(id);
-  }, [autosave, currentDraftId, draftTitle, filename, currentMarkdown, isDirty]);
+      .catch(() => setSaveStatus("บันทึกอัตโนมัติล้มเหลว"));
+  }, [autosave, autosaveSignal, currentDraftId, draftTitle, filename, isDirty]);
 
   const onExportZip = useCallback(async () => {
     const zip = new JSZip();
@@ -177,23 +202,27 @@ export default function MarkdownStudioPage(): React.ReactElement {
     }
   }, [currentDraftId, draftTitle, filename]);
 
-  const onImport = useCallback(async (file: File) => {
-    const text = await file.text();
-    setInitialMarkdown(text);
-    setCurrentMarkdown(text);
-    markdownRef.current = text;
-    setIsDirty(true);
+  const onImport = useCallback(
+    async (file: File) => {
+      const text = await file.text();
+      setInitialMarkdown(text);
+      markdownRef.current = text;
+      setEditorStats(calculateEditorStats(text));
+      setIsDirty(true);
+      queueEditorWork(text);
 
-    setFilename(file.name.endsWith(".md") || file.name.endsWith(".mdx") ? file.name : "imported.md");
+      setFilename(file.name.endsWith(".md") || file.name.endsWith(".mdx") ? file.name : "imported.md");
 
-    for (const asset of imagesRef.current.values()) {
-      URL.revokeObjectURL(asset.previewUrl);
-    }
-    imagesRef.current.clear();
-    previewToFinalRef.current.clear();
+      for (const asset of imagesRef.current.values()) {
+        URL.revokeObjectURL(asset.previewUrl);
+      }
+      imagesRef.current.clear();
+      previewToFinalRef.current.clear();
 
-    setEditorKey((k) => k + 1);
-  }, []);
+      setEditorKey((k) => k + 1);
+    },
+    [queueEditorWork]
+  );
 
   const handleSave = useCallback(() => {
     void saveDraft({
@@ -222,8 +251,8 @@ export default function MarkdownStudioPage(): React.ReactElement {
         setDraftTitle(draft.title || "งานใหม่");
         setFilename(draft.filename || "new-doc.md");
         setInitialMarkdown(draft.markdown);
-        setCurrentMarkdown(draft.markdown);
         markdownRef.current = draft.markdown;
+        setEditorStats(calculateEditorStats(draft.markdown));
         setIsDirty(false);
 
         for (const asset of imagesRef.current.values()) {
@@ -295,18 +324,22 @@ export default function MarkdownStudioPage(): React.ReactElement {
       if (!url) return;
       const markdown = `\n\n![](${url})\n`;
       if (editorRef.current?.insertMarkdown) {
-        editorRef.current.focus?.(() => {
-          editorRef.current?.insertMarkdown(markdown);
-        }, { preventScroll: true });
+        editorRef.current.focus?.(
+          () => {
+            editorRef.current?.insertMarkdown(markdown);
+          },
+          { preventScroll: true }
+        );
       } else {
         markdownRef.current += markdown;
         setInitialMarkdown(markdownRef.current);
-        setCurrentMarkdown(markdownRef.current);
+        setEditorStats(calculateEditorStats(markdownRef.current));
+        queueEditorWork(markdownRef.current);
         setEditorKey((k) => k + 1);
       }
       setIsDirty(true);
     },
-    [uploadAndEmbed]
+    [queueEditorWork, uploadAndEmbed]
   );
 
   const restoreContextSelection = useCallback(() => {
@@ -371,6 +404,33 @@ export default function MarkdownStudioPage(): React.ReactElement {
       >
         <TopLinks />
         <HeaderSection />
+        <section
+          style={{
+            ...styles.controlsSection,
+            padding: "12px 14px",
+            justifyContent: "space-between"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, minWidth: 260 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700
+              }}
+            >
+              {draftTitle || "งานใหม่"}
+            </div>
+            <div style={styles.helper}>
+              พื้นที่เขียนแบบโฟกัส ใช้งานเร็ว
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={styles.badge}>คำ {editorStats.words.toLocaleString()}</div>
+            <div style={styles.badge}>ตัวอักษร {editorStats.chars.toLocaleString()}</div>
+            <div style={styles.badge}>รูป {imagesRef.current.size}</div>
+            <div style={styles.badge}>{autosave ? "Auto-save On" : "Auto-save Off"}</div>
+          </div>
+        </section>
 
         <SavePanel
           drafts={drafts}
@@ -402,7 +462,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
         />
 
         {(shareStatus || saveStatus) && (
-          <div style={{ ...styles.helper, ...styles.helperSuccess }}>
+          <div style={{ ...styles.controlsSection, ...styles.helperSuccess, padding: "8px 12px" }}>
             {[shareStatus, saveStatus].filter(Boolean).join(" • ")}
           </div>
         )}
@@ -426,7 +486,7 @@ export default function MarkdownStudioPage(): React.ReactElement {
           markdown={initialMarkdown}
           onChange={(value) => {
             markdownRef.current = value;
-            setCurrentMarkdown(value);
+            queueEditorWork(value);
             setIsDirty(true);
           }}
           onImagePicked={(file) => uploadAndEmbed(file)}
@@ -494,7 +554,6 @@ export default function MarkdownStudioPage(): React.ReactElement {
             </button>
           </div>
         )}
-
       </div>
     </div>
   );

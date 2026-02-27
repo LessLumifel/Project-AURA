@@ -7,20 +7,20 @@ export default async function MemberPage() {
 
   return (
     <MemberShell user={user} active="home" title="Member Area" subtitle="ภาพรวมบัญชีและทางลัดสำหรับการทำงาน">
-      <div className="rounded-3xl border border-cyan-900/20 bg-sky-100/64 p-6 backdrop-blur-md sm:p-8">
+      <div className="rounded-3xl border border-slate-300 bg-white p-6 sm:p-8">
         <h2 className="text-xl font-semibold text-slate-800">ยินดีต้อนรับ {user.name}</h2>
         <p className="mt-2 text-sm text-slate-700">ข้อมูลบัญชีปัจจุบัน</p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+          <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
             <p className="text-xs text-slate-600">User ID</p>
             <p className="mt-2 break-all text-sm text-slate-800">{user.id}</p>
           </div>
-          <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+          <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
             <p className="text-xs text-slate-600">Email</p>
             <p className="mt-2 break-all text-sm text-slate-800">{user.email}</p>
           </div>
-          <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+          <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
             <p className="text-xs text-slate-600">Role</p>
             <p className="mt-2 text-sm text-slate-800">{user.role}</p>
           </div>

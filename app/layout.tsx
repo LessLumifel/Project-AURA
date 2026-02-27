@@ -30,9 +30,9 @@ export default async function RootLayout({
         <a
           href="/"
           aria-label="กลับหน้าแรก"
-          className="fixed left-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-900/20 bg-sky-100/80 p-2 shadow-xl backdrop-blur-xl transition hover:border-cyan-900/35"
+          className="fixed left-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300/80 bg-white p-2 shadow-sm transition hover:border-slate-400"
         >
-          <img src="/icon.svg" alt="AURA Home" className="h-7 w-7 brightness-110 saturate-125" />
+          <img src="/icon.svg" alt="AURA Home" className="h-7 w-7" />
         </a>
         <AuthStatus />
         <div className="min-h-screen px-4 pb-12 pt-24 sm:px-6 lg:px-8">{children}</div>

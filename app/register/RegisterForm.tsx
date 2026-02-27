@@ -40,11 +40,11 @@ export default function RegisterForm() {
 
   return (
     <form
-      className="w-full max-w-lg space-y-4 rounded-3xl border border-cyan-900/20 bg-sky-100/66 p-6 shadow-2xl backdrop-blur-md sm:p-8"
+      className="w-full max-w-lg space-y-4 rounded-3xl border border-slate-300 bg-slate-50 p-6 shadow-sm sm:p-8"
       onSubmit={onSubmit}
     >
       <div>
-        <p className="mb-2 inline-flex rounded-full border border-indigo-300/60 bg-indigo-100/80 px-3 py-1 text-xs text-indigo-700">
+        <p className="mb-2 inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600">
           Member Registration
         </p>
         <h1 className="text-2xl font-semibold text-slate-800">สมัครสมาชิก</h1>
@@ -54,7 +54,7 @@ export default function RegisterForm() {
       <label className="block text-sm text-slate-700">
         ชื่อที่แสดง
         <input
-          className="mt-1.5 h-11 w-full rounded-xl border border-cyan-900/20 bg-sky-100/78 px-3 text-slate-800 outline-none ring-0 placeholder:text-slate-500 focus:border-indigo-300/50"
+          className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none ring-0 placeholder:text-slate-500 focus:border-slate-400"
           type="text"
           autoComplete="name"
           minLength={2}
@@ -67,7 +67,7 @@ export default function RegisterForm() {
       <label className="block text-sm text-slate-700">
         อีเมล
         <input
-          className="mt-1.5 h-11 w-full rounded-xl border border-cyan-900/20 bg-sky-100/78 px-3 text-slate-800 outline-none ring-0 placeholder:text-slate-500 focus:border-indigo-300/50"
+          className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none ring-0 placeholder:text-slate-500 focus:border-slate-400"
           type="email"
           autoComplete="email"
           required
@@ -79,7 +79,7 @@ export default function RegisterForm() {
       <label className="block text-sm text-slate-700">
         รหัสผ่าน (อย่างน้อย 8 ตัว)
         <input
-          className="mt-1.5 h-11 w-full rounded-xl border border-cyan-900/20 bg-sky-100/78 px-3 text-slate-800 outline-none ring-0 placeholder:text-slate-500 focus:border-indigo-300/50"
+          className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none ring-0 placeholder:text-slate-500 focus:border-slate-400"
           type="password"
           autoComplete="new-password"
           minLength={8}
@@ -97,7 +97,7 @@ export default function RegisterForm() {
 
       <p className="text-sm text-slate-700">
         มีบัญชีแล้ว?{" "}
-        <a className="text-cyan-700 hover:text-cyan-700" href="/login">
+        <a className="text-sky-700 hover:text-sky-700" href="/login">
           เข้าสู่ระบบ
         </a>
       </p>

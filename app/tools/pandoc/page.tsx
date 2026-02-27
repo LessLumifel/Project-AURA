@@ -93,30 +93,30 @@ export default function PandocToolPage(): React.ReactElement {
   };
 
   return (
-    <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 24px 40px", color: "#0f2a3d" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 30 }}>Pandoc Converter</h1>
-          <p style={{ margin: "8px 0 0", color: "#2f5b74" }}>
-            แปลงไฟล์ Word (.docx) เป็น Markdown และอัปโหลดรูปจาก Word เข้าระบบอัตโนมัติ
-          </p>
+    <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6">
+      <section className="rounded-3xl border border-slate-300 bg-white p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900">Pandoc Converter</h1>
+            <p className="mt-2 text-sm text-slate-600">แปลงไฟล์ Word (.docx) เป็น Markdown และจัดการรูปอัตโนมัติ</p>
+          </div>
+          <div className="flex gap-2">
+            <a className="button" href="/">
+              กลับหน้าแรก
+            </a>
+            <a className="button" href="/tools/media">
+              ไป Media Manager
+            </a>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <a className="button" href="/">
-            กลับหน้าแรก
-          </a>
-          <a className="button" href="/tools/media">
-            ไป Media Manager
-          </a>
-        </div>
-      </div>
+      </section>
 
       <section
         style={{
-          marginTop: 16,
+          marginTop: 14,
           border: "1px solid var(--line)",
-          borderRadius: 16,
-          background: "var(--panel-strong)",
+          borderRadius: 20,
+          background: "var(--panel)",
           padding: 16
         }}
       >
@@ -139,16 +139,16 @@ export default function PandocToolPage(): React.ReactElement {
           <button className="button primary" disabled={!file || loading} onClick={() => void onConvert()}>
             {loading ? "กำลังแปลง..." : "Convert"}
           </button>
-          <span style={{ color: "#2f5b74", fontSize: 14 }}>{file ? file.name : "ยังไม่ได้เลือกไฟล์"}</span>
+          <span style={{ color: "#64748b", fontSize: 14 }}>{file ? file.name : "ยังไม่ได้เลือกไฟล์"}</span>
         </div>
-        {status ? <div style={{ marginTop: 10, color: "#0e7490" }}>{status}</div> : null}
+        {status ? <div style={{ marginTop: 10, color: "#0f5d87" }}>{status}</div> : null}
       </section>
 
       <section
         style={{
-          marginTop: 16,
+          marginTop: 14,
           border: "1px solid var(--line)",
-          borderRadius: 16,
+          borderRadius: 20,
           background: "var(--panel)",
           padding: 16
         }}
@@ -191,10 +191,10 @@ export default function PandocToolPage(): React.ReactElement {
             marginTop: 10,
             width: "100%",
             minHeight: 320,
-            borderRadius: 12,
-            border: "1px solid rgba(8, 145, 178, 0.35)",
-            background: "var(--panel)",
-            color: "#0c4a6e",
+            borderRadius: 14,
+            border: "1px solid rgba(15, 23, 42, 0.18)",
+            background: "#ffffff",
+            color: "#1e293b",
             padding: 12,
             fontFamily: "DM Mono, monospace",
             fontSize: 13
@@ -205,9 +205,9 @@ export default function PandocToolPage(): React.ReactElement {
       {result?.assets?.length ? (
         <section
           style={{
-            marginTop: 16,
+            marginTop: 14,
             border: "1px solid var(--line)",
-            borderRadius: 16,
+            borderRadius: 20,
             background: "var(--panel)",
             padding: 16
           }}
@@ -223,13 +223,14 @@ export default function PandocToolPage(): React.ReactElement {
                 style={{
                   display: "block",
                   border: "1px solid rgba(148, 163, 184, 0.25)",
-                  borderRadius: 10,
+                  borderRadius: 12,
                   padding: "8px 10px",
-                  color: "#155e75"
+                  color: "#334155",
+                  background: "#ffffff"
                 }}
               >
                 <div style={{ fontWeight: 600 }}>{asset.filename}</div>
-                <div style={{ fontSize: 12, color: "#2f5b74", wordBreak: "break-all" }}>{asset.key}</div>
+                <div style={{ fontSize: 12, color: "#64748b", wordBreak: "break-all" }}>{asset.key}</div>
               </a>
             ))}
           </div>
@@ -238,4 +239,6 @@ export default function PandocToolPage(): React.ReactElement {
     </main>
   );
 }
+
+
 

@@ -241,37 +241,37 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
   };
 
   return (
-    <section className="space-y-4 rounded-3xl border border-cyan-900/20 bg-sky-100/62 p-6 backdrop-blur-md sm:p-8">
+    <section className="space-y-4 rounded-3xl border border-slate-300 bg-slate-50 p-6  sm:p-8">
       <div>
         <h2 className="text-xl font-semibold text-slate-800">จัดการสมาชิก</h2>
         <p className="mt-2 text-sm text-slate-700">admin สามารถเพิ่ม แก้ไข ลบ และรีเซ็ตรหัสผ่านสมาชิกได้จากหน้านี้</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
           <p className="text-xs text-slate-600">สมาชิกทั้งหมด</p>
           <p className="mt-2 text-2xl font-semibold text-slate-800">{totals.all}</p>
         </div>
-        <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
           <p className="text-xs text-slate-600">Admin</p>
           <p className="mt-2 text-2xl font-semibold text-slate-800">{totals.admins}</p>
         </div>
-        <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
           <p className="text-xs text-slate-600">Member</p>
           <p className="mt-2 text-2xl font-semibold text-slate-800">{totals.members}</p>
         </div>
-        <div className="rounded-2xl border border-cyan-900/20 bg-sky-100/62 p-4 sm:col-span-3">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4 sm:col-span-3">
           <p className="text-xs text-slate-600">รออนุมัติ</p>
           <p className="mt-2 text-2xl font-semibold text-slate-800">{totals.pending}</p>
         </div>
       </div>
 
-      <form onSubmit={onCreateUser} className="grid gap-3 rounded-2xl border border-cyan-900/20 bg-sky-100/60 p-4 sm:grid-cols-2">
+      <form onSubmit={onCreateUser} className="grid gap-3 rounded-2xl border border-slate-300 bg-white p-4 sm:grid-cols-2">
         <h3 className="sm:col-span-2 text-sm font-semibold text-slate-800">เพิ่มสมาชิกใหม่</h3>
         <label className="block text-sm text-slate-700">
           ชื่อ
           <input
-            className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+            className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
             required
             minLength={2}
             value={createForm.name}
@@ -281,7 +281,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
         <label className="block text-sm text-slate-700">
           อีเมล
           <input
-            className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+            className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
             type="email"
             required
             value={createForm.email}
@@ -291,7 +291,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
         <label className="block text-sm text-slate-700">
           รหัสผ่าน
           <input
-            className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+            className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
             type="password"
             minLength={8}
             required
@@ -302,7 +302,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
         <label className="block text-sm text-slate-700">
           Role
           <select
-            className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+            className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
             value={createForm.role}
             onChange={(event) => setCreateForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
           >
@@ -313,7 +313,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
         <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-cyan-900/20 bg-sky-100/72 accent-cyan-600"
+            className="h-4 w-4 rounded border-slate-300 bg-white accent-slate-700"
             checked={createForm.approved}
             onChange={(event) => setCreateForm((prev) => ({ ...prev, approved: event.target.checked }))}
           />
@@ -329,7 +329,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
       <label className="block text-sm text-slate-700">
         ค้นหาสมาชิก
         <input
-          className="mt-1.5 h-11 w-full max-w-xl rounded-xl border border-cyan-900/20 bg-sky-100/70 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+          className="mt-1.5 h-11 w-full max-w-xl rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
           placeholder="พิมพ์ชื่อ, อีเมล หรือ role"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -340,12 +340,12 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
       {notice ? <p className="text-sm text-emerald-700">{notice}</p> : null}
 
       {editing ? (
-        <form onSubmit={onSaveEdit} className="grid gap-3 rounded-2xl border border-cyan-300/60 bg-cyan-50/80 p-4 sm:grid-cols-2">
-          <h3 className="sm:col-span-2 text-sm font-semibold text-cyan-700">แก้ไขสมาชิก</h3>
+        <form onSubmit={onSaveEdit} className="grid gap-3 rounded-2xl border border-slate-300 bg-slate-50 p-4 sm:grid-cols-2">
+          <h3 className="sm:col-span-2 text-sm font-semibold text-slate-600">แก้ไขสมาชิก</h3>
           <label className="block text-sm text-slate-700">
             ชื่อ
             <input
-              className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+              className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
               minLength={2}
               required
               value={editing.name}
@@ -355,7 +355,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
           <label className="block text-sm text-slate-700">
             อีเมล
             <input
-              className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+              className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
               type="email"
               required
               value={editing.email}
@@ -365,7 +365,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
           <label className="block text-sm text-slate-700">
             Role
             <select
-              className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+              className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
               value={editing.role}
               onChange={(event) => setEditing((prev) => (prev ? { ...prev, role: event.target.value as UserRole } : prev))}
               disabled={editing.id === currentUserId}
@@ -377,7 +377,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
           <label className="block text-sm text-slate-700">
             สถานะบัญชี
             <select
-              className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+              className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
               value={editing.approved ? "approved" : "pending"}
               onChange={(event) =>
                 setEditing((prev) => (prev ? { ...prev, approved: event.target.value === "approved" } : prev))
@@ -390,7 +390,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
           <label className="block text-sm text-slate-700">
             รหัสผ่านใหม่ (ไม่กรอก = ไม่เปลี่ยน)
             <input
-              className="mt-1.5 h-10 w-full rounded-xl border border-cyan-900/20 bg-sky-100/72 px-3 text-slate-800 outline-none focus:border-cyan-300/60"
+              className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-800 outline-none focus:border-slate-400"
               type="password"
               minLength={8}
               value={editing.password}
@@ -411,9 +411,9 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
       {loading ? (
         <p className="text-sm text-slate-700">กำลังโหลดข้อมูล...</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-cyan-900/20">
+        <div className="overflow-x-auto rounded-2xl border border-slate-300">
           <table className="min-w-full text-sm">
-            <thead className="bg-sky-100/66 text-slate-700">
+            <thead className="bg-slate-100 text-slate-700">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">ชื่อ</th>
                 <th className="px-4 py-3 text-left font-medium">อีเมล</th>
@@ -422,7 +422,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
                 <th className="px-4 py-3 text-left font-medium">จัดการ</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-300/60 bg-sky-100/768">
+            <tbody className="divide-y divide-slate-300/60 bg-white">
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-4 text-slate-800/70">
@@ -436,7 +436,7 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
                     <div className="flex items-center gap-2">
                       <span>{user.name}</span>
                       {user.id === currentUserId ? (
-                        <span className="rounded-full border border-cyan-400/50 bg-cyan-100/80 px-2 py-0.5 text-[11px] text-cyan-700">
+                        <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] text-slate-600">
                           คุณ
                         </span>
                       ) : null}
@@ -498,5 +498,6 @@ export default function ManageUsersClient({ currentUserId }: ManageUsersClientPr
     </section>
   );
 }
+
 
 

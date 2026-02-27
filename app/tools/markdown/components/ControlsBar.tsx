@@ -38,7 +38,7 @@ export default function ControlsBar({
             (e.target as HTMLInputElement).style.boxShadow = styles.inputFocus.boxShadow;
           }}
           onBlur={(e) => {
-            (e.target as HTMLInputElement).style.borderColor = "rgba(148, 163, 184, 0.4)";
+            (e.target as HTMLInputElement).style.borderColor = "var(--line)";
             (e.target as HTMLInputElement).style.boxShadow = "none";
           }}
           style={styles.input}

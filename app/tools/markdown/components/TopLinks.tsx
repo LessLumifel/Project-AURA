@@ -9,7 +9,6 @@ export default function TopLinks(): React.ReactElement {
       <a className="button" href="/tools/media">
         Media Manager
       </a>
-      <span>เครื่องมือ: Markdown Studio</span>
     </div>
   );
 }
